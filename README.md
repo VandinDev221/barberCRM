@@ -101,6 +101,21 @@ npx ts-node prisma/seed.ts
 exit
 ```
 
+## Deploy no Vercel (só frontend)
+
+O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa estar em outro serviço (Railway, Render, Fly.io, etc.).
+
+1. No [Vercel](https://vercel.com), importe o repositório **barberCRM**.
+2. Em **Project Settings → General → Root Directory** clique em **Edit** e defina: **`frontend`**.
+3. Confirme **Framework Preset: Next.js** e **Build Command: `npm run build`** (já vem do `frontend/package.json`).
+4. Em **Environment Variables** adicione:
+   - `NEXT_PUBLIC_API_URL` = URL do seu backend em produção (ex: `https://sua-api.railway.app`).
+5. Faça o **Deploy**.
+
+6. Se aparecer *"No Output Directory named public"*: em **Settings → General** deixe **Output Directory** em branco (não use `public`). O frontend já tem `vercel.json` e `next.config.js` ajustados para o Vercel.
+
+Assim o Vercel usa só a pasta `frontend` e não tenta rodar o build do backend (evita o erro `nest: command not found`).
+
 ## Scripts úteis
 
 | Comando (raiz) | Descrição |
