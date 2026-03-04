@@ -3,8 +3,8 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // Usar apenas o engine linux-musl com OpenSSL 3 (Railway)
-  binaryTargets = ["linux-musl-openssl-3.0.x"]
+  // Railway detecta "linux-musl"; incluir ambos para o engine estar disponível
+  binaryTargets = ["linux-musl-openssl-3.0.x", "linux-musl"]
 }
 
 datasource db {

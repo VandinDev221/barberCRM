@@ -132,9 +132,9 @@ Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquiv
 
 **Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
-**Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** o Railpack precisa do OpenSSL no container. No serviço do backend no Railway, em **Variables**, adicione:
+**Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** no Railway, em **Variables** do backend, adicione:
 - **`RAILPACK_DEPLOY_APT_PACKAGES`** = **`libssl3`**  
-Assim o Railpack instala a lib SSL na imagem final. Faça um **Redeploy** depois. O `schema.prisma` já está com `binaryTargets` para `linux-musl-openssl-3.0.x`.
+**Se der "could not locate the Query Engine for runtime linux-musl":** o schema já inclui `linux-musl` e `linux-musl-openssl-3.0.x`. Se a imagem tiver só OpenSSL 3, defina também **`PRISMA_QUERY_ENGINE_LIBRARY`** = **`/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node`** para forçar o engine compatível com libssl3. Faça **Redeploy** depois.
 
 ## Deploy no Vercel (só frontend)
 
