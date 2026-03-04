@@ -101,6 +101,15 @@ npx ts-node prisma/seed.ts
 exit
 ```
 
+### Erro "Cannot find module '/app/dist/main.js'"
+
+Significa que a imagem foi criada **sem** rodar o build do NestJS. Certifique-se de:
+
+- **Docker**: usar o Dockerfile da pasta `backend` com **contexto** igual à pasta backend:
+  - `docker build -f backend/Dockerfile backend/` (a partir da raiz do projeto)
+  - Ou `docker-compose build backend` (o `docker-compose.yml` já usa `context: ./backend`).
+- **Railway / Render / etc.**: se usar Dockerfile, defina **Root Directory** = `backend` para o serviço da API. Se usar buildpack Node (sem Docker), configure **Build Command** = `npm run build` e **Start Command** = `npm run start:prod`.
+
 ## Deploy no Vercel (só frontend)
 
 O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa estar em outro serviço (Railway, Render, Fly.io, etc.).
@@ -108,8 +117,9 @@ O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa
 1. No [Vercel](https://vercel.com), importe o repositório **barberCRM**.
 2. Em **Project Settings → General → Root Directory** clique em **Edit** e defina: **`frontend`**.
 3. Confirme **Framework Preset: Next.js** e **Build Command: `npm run build`** (já vem do `frontend/package.json`).
-4. Em **Environment Variables** adicione:
-   - `NEXT_PUBLIC_API_URL` = URL do seu backend em produção (ex: `https://sua-api.railway.app`).
+4. Em **Environment Variables** adicione (obrigatório para o login funcionar):
+   - `NEXT_PUBLIC_API_URL` = URL **pública** do seu backend (ex: `https://sua-api.railway.app`).  
+   Se não configurar, ao clicar em Entrar aparecerá erro de conexão (o Vercel não acessa `localhost`).
 5. Faça o **Deploy**.
 
 6. Se aparecer *"No Output Directory named public"*: em **Settings → General** deixe **Output Directory** em branco (não use `public`). O frontend já tem `vercel.json` e `next.config.js` ajustados para o Vercel.
