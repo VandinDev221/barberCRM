@@ -132,6 +132,10 @@ Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquiv
 
 **Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
+**Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** o Railpack precisa do OpenSSL no container. No serviço do backend no Railway, em **Variables**, adicione:
+- **`RAILPACK_DEPLOY_APT_PACKAGES`** = **`libssl3`**  
+Assim o Railpack instala a lib SSL na imagem final. Faça um **Redeploy** depois. O `schema.prisma` já está com `binaryTargets` para `linux-musl-openssl-3.0.x`.
+
 ## Deploy no Vercel (só frontend)
 
 O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa estar em outro serviço (Railway, Render, Fly.io, etc.).
