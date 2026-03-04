@@ -14,7 +14,7 @@ export class JwtRefreshStrategy extends PassportStrategy(Strategy, 'jwt-refresh'
     const secret = config.get<string>('JWT_REFRESH_SECRET');
     if (!secret) {
       throw new Error(
-        'JWT_REFRESH_SECRET não está definido. Configure no .env (veja .env.example).',
+        'JWT_REFRESH_SECRET não está definido. Em produção (ex: Railway): Settings → Variables → adicione JWT_REFRESH_SECRET. Local: .env (veja .env.example).',
       );
     }
     super({

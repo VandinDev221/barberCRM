@@ -121,10 +121,16 @@ Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado*
 1. No projeto Railway, crie um **novo serviço** (ou use o que já existe para a API).
 2. Conecte o mesmo repositório e, nas configurações do serviço:
    - **Root Directory**: defina como **`backend`** (obrigatório).
-3. Variáveis de ambiente: `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `PORT` (opcional; o Railway define se não houver).
+3. **Variáveis de ambiente** (obrigatórias): no serviço do backend, vá em **Settings → Variables** e adicione:
+   - `DATABASE_URL` — URL do PostgreSQL (ex.: do próprio Railway ou externo)
+   - `JWT_SECRET` — string segura para assinar o token (ex.: `openssl rand -base64 32`)
+   - `JWT_REFRESH_SECRET` — outra string segura para o refresh token  
+   Se faltar `JWT_SECRET` ou `JWT_REFRESH_SECRET`, a API não sobe e exibe erro pedindo para configurar nas variáveis do deploy.
 4. Não altere Build/Start: o Railpack vai usar `npm install`, `npm run build` e `npm start` a partir da pasta `backend`. O script `start` do backend já está como `node dist/main` para produção.
 
 Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquivo. O frontend (Vercel ou outro) deve apontar `NEXT_PUBLIC_API_URL` para a URL pública desse serviço.
+
+**Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
 ## Deploy no Vercel (só frontend)
 
