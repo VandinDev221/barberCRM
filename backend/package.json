@@ -4,10 +4,10 @@
   "private": true,
   "scripts": {
     "build": "nest build",
-    "start": "node dist/main",
+    "start": "prisma generate && node dist/main",
     "start:nest": "nest start",
     "start:dev": "nest start --watch",
-    "start:prod": "node dist/main",
+    "start:prod": "prisma generate && node dist/main",
     "start:debug": "nest start --debug --watch",
     "lint": "eslint \"{src,apps,libs,test}/**/*.ts\"",
     "test": "jest",
