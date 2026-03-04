@@ -1,4 +1,18 @@
 import 'dotenv/config';
+import * as path from 'path';
+import * as fs from 'fs';
+
+// Railway (linux-musl): forçar engine OpenSSL 3 se existir (evita "could not locate Query Engine")
+if (process.platform === 'linux' && !process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
+  const enginePath = path.join(__dirname, '..', 'node_modules', '.prisma', 'client', 'libquery_engine-linux-musl-openssl-3.0.x.so.node');
+  try {
+    fs.accessSync(enginePath);
+    process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
+  } catch {
+    // ignora se o arquivo não existir (ex.: local)
+  }
+}
+
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
