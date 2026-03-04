@@ -16,7 +16,14 @@ export async function api<T>(
   };
   if (token) headers['Authorization'] = `Bearer ${token}`;
 
-  const res = await fetch(`${API_URL}/api${path}`, { ...options, headers });
+  const url = API_URL ? `${API_URL}/api${path}` : `/api${path}`;
+  const res = await fetch(url, { ...options, headers });
+
+  if (res.status === 404 && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+    throw new Error(
+      'API não configurada. Na Vercel, adicione a variável NEXT_PUBLIC_API_URL com a URL pública do backend (ex: https://seu-backend.up.railway.app).'
+    );
+  }
   if (res.status === 401) {
     const refresh = localStorage.getItem('refreshToken');
     if (refresh) {

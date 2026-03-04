@@ -30,7 +30,17 @@ export default function LoginPage() {
       router.replace('/dashboard');
       router.refresh();
     } catch (err: unknown) {
-      setError(err instanceof Error ? err.message : 'Erro ao entrar');
+      const msg = err instanceof Error ? err.message : 'Erro ao entrar';
+      const isApiConfig =
+        msg.includes('API não configurada') ||
+        msg.includes('NEXT_PUBLIC_API_URL') ||
+        msg.includes('DNS_HOSTNAME_RESOLVED_PRIVATE') ||
+        (err instanceof TypeError && msg.includes('fetch'));
+      setError(
+        isApiConfig
+          ? 'API não configurada. Na Vercel: Settings → Environment Variables → adicione NEXT_PUBLIC_API_URL = URL do backend (ex: https://seu-app.up.railway.app). Depois faça Redeploy.'
+          : msg
+      );
     } finally {
       setLoading(false);
     }
