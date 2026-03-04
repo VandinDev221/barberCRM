@@ -110,6 +110,22 @@ Significa que a imagem foi criada **sem** rodar o build do NestJS. Certifique-se
   - Ou `docker-compose build backend` (o `docker-compose.yml` já usa `context: ./backend`).
 - **Railway / Render / etc.**: se usar Dockerfile, defina **Root Directory** = `backend` para o serviço da API. Se usar buildpack Node (sem Docker), configure **Build Command** = `npm run build` e **Start Command** = `npm run start:prod`.
 
+### Erro "Cannot find module '/app/backend/dist/main'"
+
+Significa que o serviço está rodando a partir da **raiz do monorepo** e o `dist` do backend não está disponível no container. **Solução:** crie um serviço só para a API e defina **Root Directory** = **`backend`**. Assim o build e o start rodam dentro da pasta `backend`, o `dist` fica em `/app/dist` e o comando `npm start` (ou `npm run start:prod`) funciona.
+
+## Deploy do backend no Railway
+
+Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado** com a pasta do backend como raiz:
+
+1. No projeto Railway, crie um **novo serviço** (ou use o que já existe para a API).
+2. Conecte o mesmo repositório e, nas configurações do serviço:
+   - **Root Directory**: defina como **`backend`** (obrigatório).
+3. Variáveis de ambiente: `DATABASE_URL`, `JWT_SECRET`, `JWT_REFRESH_SECRET`, `PORT` (opcional; o Railway define se não houver).
+4. Não altere Build/Start: o Railpack vai usar `npm install`, `npm run build` e `npm start` a partir da pasta `backend`. O script `start` do backend já está como `node dist/main` para produção.
+
+Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquivo. O frontend (Vercel ou outro) deve apontar `NEXT_PUBLIC_API_URL` para a URL pública desse serviço.
+
 ## Deploy no Vercel (só frontend)
 
 O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa estar em outro serviço (Railway, Render, Fly.io, etc.).
