@@ -100,10 +100,10 @@ export class AuthService {
   }
 
   private async issueTokens(userId: string, email: string) {
-    const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET');
+    const refreshSecret = this.config.get<string>('JWT_REFRESH_SECRET') || process.env.JWT_REFRESH_SECRET;
     if (!refreshSecret) {
       throw new Error(
-        'JWT_REFRESH_SECRET não está definido. Adicione no .env do backend.',
+        'JWT_REFRESH_SECRET não está definido. Adicione no .env do backend ou em Railway → Variables.',
       );
     }
     const payload = { sub: userId, email };

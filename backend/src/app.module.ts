@@ -15,7 +15,11 @@ import { PrismaModule } from './common/prisma/prisma.module';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({ isGlobal: true }),
+    ConfigModule.forRoot({
+      isGlobal: true,
+      // Inclui process.env (variáveis do Railway, etc.) no ConfigService
+      load: [() => ({ ...process.env })],
+    }),
     ThrottlerModule.forRoot([
       {
         ttl: 60000,

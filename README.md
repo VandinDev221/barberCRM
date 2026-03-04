@@ -108,7 +108,7 @@ Significa que a imagem foi criada **sem** rodar o build do NestJS. Certifique-se
 - **Docker**: usar o Dockerfile da pasta `backend` com **contexto** igual à pasta backend:
   - `docker build -f backend/Dockerfile backend/` (a partir da raiz do projeto)
   - Ou `docker-compose build backend` (o `docker-compose.yml` já usa `context: ./backend`).
-- **Railway / Render / etc.**: se usar Dockerfile, defina **Root Directory** = `backend` para o serviço da API. Se usar buildpack Node (sem Docker), configure **Build Command** = `npm run build` e **Start Command** = `npm run start:prod`.
+- **Railway / Render / etc.**: se usar Dockerfile, defina **Root Directory** = `backend` (sem barra: `backend`, não `/backend`) para o serviço da API. Se usar buildpack Node (sem Docker), configure **Build Command** = `npm run build` e **Start Command** = `npm run start:prod`.
 
 ### Erro "Cannot find module '/app/backend/dist/main'"
 
@@ -120,7 +120,7 @@ Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado*
 
 1. No projeto Railway, crie um **novo serviço** (ou use o que já existe para a API).
 2. Conecte o mesmo repositório e, nas configurações do serviço:
-   - **Root Directory**: defina como **`backend`** (obrigatório).
+   - **Root Directory**: defina como **`backend`** (obrigatório). Use sem barra: `backend`, não `/backend`.
 3. **Variáveis de ambiente** (obrigatórias): no serviço do backend, vá em **Settings → Variables** e adicione:
    - `DATABASE_URL` — URL do PostgreSQL (ex.: do próprio Railway ou externo)
    - `JWT_SECRET` — string segura para assinar o token (ex.: `openssl rand -base64 32`)
@@ -137,7 +137,7 @@ Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquiv
 O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa estar em outro serviço (Railway, Render, Fly.io, etc.).
 
 1. No [Vercel](https://vercel.com), importe o repositório **barberCRM**.
-2. Em **Project Settings → General → Root Directory** clique em **Edit** e defina: **`frontend`**.
+2. Em **Project Settings → General → Root Directory** clique em **Edit** e defina: **`frontend`** (sem barra: `frontend`, não `/frontend`).
 3. Confirme **Framework Preset: Next.js** e **Build Command: `npm run build`** (já vem do `frontend/package.json`).
 4. Em **Environment Variables** adicione (obrigatório para o login funcionar):
    - `NEXT_PUBLIC_API_URL` = URL **pública** do seu backend (ex: `https://sua-api.railway.app`).  
