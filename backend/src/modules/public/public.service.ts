@@ -45,7 +45,7 @@ export class PublicService {
       select: { startAt: true, endAt: true },
     });
 
-    const slots: { time: string; endTime: string }[] = [];
+    const slots: { time: string; endTime: string; available: boolean }[] = [];
     const slotMs = SLOT_MINUTES * 60 * 1000;
     for (let t = dayStart.getTime(); t < dayEnd.getTime(); t += slotMs) {
       const slotStart = new Date(t);
@@ -56,16 +56,15 @@ export class PublicService {
           (slotEnd > (a.startAt as Date) && slotEnd <= (a.endAt as Date)) ||
           (slotStart <= (a.startAt as Date) && slotEnd >= (a.endAt as Date))
       );
-      if (!overlaps) {
-        const h = slotStart.getHours();
-        const m = slotStart.getMinutes();
-        const eh = slotEnd.getHours();
-        const em = slotEnd.getMinutes();
-        slots.push({
-          time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
-          endTime: `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`,
-        });
-      }
+      const h = slotStart.getHours();
+      const m = slotStart.getMinutes();
+      const eh = slotEnd.getHours();
+      const em = slotEnd.getMinutes();
+      slots.push({
+        time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
+        endTime: `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`,
+        available: !overlaps,
+      });
     }
     return { slots };
   }

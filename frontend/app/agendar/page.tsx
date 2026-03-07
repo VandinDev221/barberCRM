@@ -9,7 +9,7 @@ import { format, addDays } from 'date-fns';
 import { apiGet, apiPost } from '@/lib/api';
 
 type Service = { id: string; name: string; price: string; duration: number };
-type Slot = { time: string; endTime: string };
+type Slot = { time: string; endTime: string; available: boolean };
 
 export default function AgendarPage() {
   const [services, setServices] = useState<Service[]>([]);
@@ -141,20 +141,35 @@ export default function AgendarPage() {
                 ) : slotsLoading ? (
                   <p className="text-sm text-muted-foreground">Carregando horários...</p>
                 ) : slots.length === 0 ? (
-                  <p className="text-sm text-muted-foreground">Nenhum horário disponível neste dia.</p>
+                  <p className="text-sm text-muted-foreground">Nenhum horário neste dia.</p>
                 ) : (
-                  <div className="flex flex-wrap gap-2">
-                    {slots.map((s) => (
-                      <Button
-                        key={s.time}
-                        type="button"
-                        variant={time === s.time ? 'default' : 'outline'}
-                        size="sm"
-                        onClick={() => setTime(s.time)}
-                      >
-                        {s.time}
-                      </Button>
-                    ))}
+                  <div className="space-y-2">
+                    <p className="text-xs text-muted-foreground">
+                      <span className="inline-block h-3 w-3 rounded-full bg-green-500/80 align-middle mr-1" /> Livre
+                      {' · '}
+                      <span className="inline-block h-3 w-3 rounded-full bg-red-500/80 align-middle mr-1" /> Ocupado
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {slots.map((s) => (
+                        <button
+                          key={s.time}
+                          type="button"
+                          disabled={!s.available}
+                          onClick={() => s.available && setTime(s.time)}
+                          className={`inline-flex items-center justify-center rounded-md px-3 py-2 text-sm font-medium transition-colors focus-visible:outline focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:pointer-events-none disabled:opacity-90 ${
+                            !s.available
+                              ? 'bg-red-500/20 text-red-700 border border-red-500/40 cursor-not-allowed dark:bg-red-950/40 dark:text-red-400'
+                              : time === s.time
+                                ? 'bg-green-600 text-white border border-green-600 hover:bg-green-700'
+                                : 'bg-green-500/15 text-green-800 border border-green-500/40 hover:bg-green-500/30 dark:bg-green-950/40 dark:text-green-300 dark:border-green-500/30'
+                          }`}
+                          title={s.available ? `Horário livre: ${s.time}` : 'Horário ocupado'}
+                        >
+                          {s.time}
+                          {!s.available && ' (ocupado)'}
+                        </button>
+                      ))}
+                    </div>
                   </div>
                 )}
               </div>
