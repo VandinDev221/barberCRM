@@ -78,4 +78,45 @@ export class ReportsService {
     });
     return clients;
   }
+
+  async exportCsv(
+    userId: string,
+    type: 'revenue' | 'top-services' | 'inactive-clients',
+    startDate: string,
+    endDate: string,
+    days = 30,
+  ): Promise<{ csv: string; filename: string }> {
+    const escape = (v: string | number) => {
+      const s = String(v);
+      return s.includes(',') || s.includes('"') || s.includes('\n') ? `"${s.replace(/"/g, '""')}"` : s;
+    };
+    if (type === 'revenue') {
+      const { series, total } = await this.revenueByPeriod(userId, startDate, endDate);
+      const lines = [['Data', 'Valor'].map(escape).join(',')];
+      series.forEach(({ date, value }) => lines.push([date, value.toFixed(2)].map(escape).join(',')));
+      lines.push(['Total', total.toFixed(2)].map(escape).join(','));
+      return { csv: lines.join('\n'), filename: `faturamento-${startDate}-${endDate}.csv` };
+    }
+    if (type === 'top-services') {
+      const data = await this.topServices(userId, startDate, endDate);
+      const lines = [['Serviço', 'Quantidade', 'Faturamento'].map(escape).join(',')];
+      data.forEach((s) =>
+        lines.push([(s as any).name, (s as any).count, (s as any).revenue.toFixed(2)].map(escape).join(','))
+      );
+      return { csv: lines.join('\n'), filename: `servicos-${startDate}-${endDate}.csv` };
+    }
+    const data = await this.inactiveClients(userId, days);
+    const lines = [['Nome', 'Telefone', 'E-mail', 'Última visita'].map(escape).join(',')];
+    data.forEach((c) =>
+      lines.push(
+        [
+          c.name,
+          c.phone,
+          c.email ?? '',
+          c.lastVisitAt ? (c.lastVisitAt as Date).toISOString().slice(0, 10) : 'Nunca',
+        ].map(escape).join(',')
+      )
+    );
+    return { csv: lines.join('\n'), filename: `clientes-inativos-${days}dias.csv` };
+  }
 }

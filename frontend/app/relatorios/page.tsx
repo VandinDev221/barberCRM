@@ -4,8 +4,28 @@ import { useState } from 'react';
 import { useQuery } from '@tanstack/react-query';
 import { apiGet } from '@/lib/api';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
 import { formatCurrency, formatDate } from '@/lib/utils';
 import { subDays, format } from 'date-fns';
+import { Download } from 'lucide-react';
+
+const API_URL = process.env.NEXT_PUBLIC_API_URL || '';
+async function downloadCsv(type: 'revenue' | 'top-services' | 'inactive-clients', startDate: string, endDate: string, days = 30) {
+  const token = typeof window !== 'undefined' ? localStorage.getItem('accessToken') : null;
+  if (!token) return;
+  const params = new URLSearchParams({ type, startDate, endDate });
+  if (type === 'inactive-clients') params.set('days', String(days));
+  const url = (API_URL ? `${API_URL}/api` : '') + `/reports/export/csv?${params}`;
+  const res = await fetch(url, { headers: { Authorization: `Bearer ${token}` } });
+  if (!res.ok) return;
+  const blob = await res.blob();
+  const name = res.headers.get('Content-Disposition')?.match(/filename="?([^";]+)"?/)?.[1] || 'relatorio.csv';
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = name;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
 
 export default function RelatoriosPage() {
   const [startDate, setStartDate] = useState(format(subDays(new Date(), 30), 'yyyy-MM-dd'));
@@ -67,13 +87,23 @@ export default function RelatoriosPage() {
 
       <div className="grid gap-6 lg:grid-cols-2">
         <Card>
-          <CardHeader>
-            <CardTitle>Faturamento por dia</CardTitle>
-            {revenue && (
-              <p className="text-sm text-muted-foreground">
-                Total: {formatCurrency(revenue.total)}
-              </p>
-            )}
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+            <div>
+              <CardTitle>Faturamento por dia</CardTitle>
+              {revenue && (
+                <p className="text-sm text-muted-foreground">
+                  Total: {formatCurrency(revenue.total)}
+                </p>
+              )}
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCsv('revenue', startDate, endDate)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
           </CardHeader>
           <CardContent>
             {revenue?.series?.length ? (
@@ -92,8 +122,16 @@ export default function RelatoriosPage() {
         </Card>
 
         <Card>
-          <CardHeader>
+          <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
             <CardTitle>Serviços mais vendidos</CardTitle>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => downloadCsv('top-services', startDate, endDate)}
+            >
+              <Download className="mr-2 h-4 w-4" />
+              Exportar CSV
+            </Button>
           </CardHeader>
           <CardContent>
             {topServices?.length ? (
@@ -115,11 +153,21 @@ export default function RelatoriosPage() {
       </div>
 
       <Card className="mt-6">
-        <CardHeader>
-          <CardTitle>Clientes inativos (30 dias)</CardTitle>
-          <p className="text-sm text-muted-foreground">
-            Última visita há mais de 30 dias ou nunca visitaram
-          </p>
+        <CardHeader className="flex flex-row flex-wrap items-center justify-between gap-2">
+          <div>
+            <CardTitle>Clientes inativos (30 dias)</CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Última visita há mais de 30 dias ou nunca visitaram
+            </p>
+          </div>
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => downloadCsv('inactive-clients', startDate, endDate, 30)}
+          >
+            <Download className="mr-2 h-4 w-4" />
+            Exportar CSV
+          </Button>
         </CardHeader>
         <CardContent>
           {inactive?.length ? (

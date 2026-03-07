@@ -1,6 +1,6 @@
 # Barber CRM
 
-Sistema web de **CRM e Gestão para Barbeiro Autônomo** — single-tenant, pronto para produção.
+Sistema web de **CRM e Gestão para Barbeiro Autônomo** — single-tenant, pronto para produção e **licenciamento (aluguel)**.
 
 ## Funcionalidades
 
@@ -164,6 +164,15 @@ O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa
 
 Assim o Vercel usa só a pasta `frontend` e não tenta rodar o build do backend (evita o erro `nest: command not found`).
 
+## Backup do banco
+
+Com `DATABASE_URL` definida e `pg_dump` instalado (cliente PostgreSQL):
+
+- **Linux/macOS:** `cd backend && mkdir -p backups && DATABASE_URL="sua_url" sh scripts/backup.sh`
+- **Windows (PowerShell):** `cd backend; $env:DATABASE_URL = "sua_url"; .\scripts\backup.ps1`
+
+O arquivo é salvo em `backend/backups/barber-backup-AAAA-MM-DD-HHmm.sql`. Para backup automático diário, agende um cron (Linux) ou Task Scheduler (Windows) com o comando acima.
+
 ## Scripts úteis
 
 | Comando (raiz) | Descrição |
@@ -209,14 +218,24 @@ Autenticação: use o token JWT retornado no login em **Authorize** (Bearer).
 - Validação de entrada (class-validator)
 - JWT com refresh token
 
-## Próximos passos (opcional)
+## Licenciamento (aluguel)
 
-- [ ] Lembretes WhatsApp (24h antes)
-- [ ] Link público de agendamento
-- [ ] Campanhas e mensagem de aniversário
-- [ ] Exportação PDF/Excel dos relatórios
-- [ ] Backup automático diário (cron + script)
+O Barber CRM é oferecido sob **licença de uso (aluguel)**. Cada instalação é **single-tenant**: um banco e um ambiente por cliente. Inclui:
 
-## Licença
+- Instalação e configuração (backend + frontend + banco)
+- Atualizações de correções e melhorias durante o período contratado
+- Documentação e suporte para uso
 
-Uso privado / single-tenant.
+Para **contratar ou saber valores**: **contato@seudominio.com** (substitua pelo seu e-mail ou WhatsApp).
+
+## Funcionalidades já incluídas
+
+- **Link público de agendamento:** qualquer pessoa pode agendar em `/agendar` (ex: `https://seu-site.com/agendar`) sem login.
+- **Exportação CSV:** na tela Relatórios, use "Exportar CSV" em Faturamento, Serviços mais vendidos e Clientes inativos.
+- **Backup:** script em `backend/scripts/backup.sh` (e `.ps1` no Windows) para backup do PostgreSQL; veja seção "Backup do banco" acima.
+
+## Roadmap (futuras versões)
+
+- Lembretes WhatsApp (24h antes do agendamento)
+- Campanhas e mensagem de aniversário
+- Exportação PDF dos relatórios

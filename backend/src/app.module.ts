@@ -12,6 +12,7 @@ import { InventoryModule } from './modules/inventory/inventory.module';
 import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { SettingsModule } from './modules/settings/settings.module';
+import { PublicModule } from './modules/public/public.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 
 @Module({
@@ -39,6 +40,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
     DashboardModule,
     LoyaltyModule,
     SettingsModule,
+    PublicModule,
   ],
 })
 export class AppModule {}

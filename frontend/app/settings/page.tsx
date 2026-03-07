@@ -13,9 +13,28 @@ export default function SettingsPage() {
             Integrações WhatsApp, backup e preferências podem ser adicionados aqui.
           </p>
         </CardHeader>
+        <CardContent className="space-y-4">
+          <ul className="list-inside list-disc text-sm text-muted-foreground space-y-1">
+            <li><strong className="text-foreground">Link de agendamento:</strong> compartilhe <a href="/agendar" className="text-primary hover:underline">/agendar</a> para clientes agendarem sem login.</li>
+            <li><strong className="text-foreground">Exportar relatórios:</strong> use o botão &quot;Exportar CSV&quot; na página Relatórios.</li>
+            <li><strong className="text-foreground">Backup:</strong> use o script em <code className="bg-muted px-1 rounded">backend/scripts/backup.sh</code> (veja README).</li>
+          </ul>
+          <p className="text-sm text-muted-foreground pt-2">
+            Em breve: lembretes por WhatsApp e campanhas de aniversário.
+          </p>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle>Lembretes e campanhas</CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Lembrete 24h antes do agendamento e mensagem de aniversário (integração WhatsApp Business em versão futura).
+          </p>
+        </CardHeader>
         <CardContent>
-          <p className="text-muted-foreground">
-            Em uma próxima versão: link de agendamento público, lembretes WhatsApp e campanhas.
+          <p className="text-sm text-muted-foreground">
+            Recurso planejado. Entre em contato com o fornecedor para saber quando estará disponível.
           </p>
         </CardContent>
       </Card>
