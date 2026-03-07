@@ -1,0 +1,27 @@
+# Build e run do BACKEND a partir da raiz do repo.
+# Use este Dockerfile no Railway quando NÃO for possível definir Root Directory = backend.
+# Em Railway: Settings → Build → Dockerfile path = Dockerfile.backend
+
+FROM node:20-alpine AS base
+WORKDIR /app
+
+FROM base AS deps
+COPY backend/package*.json ./
+RUN npm install --omit=dev
+
+FROM base AS builder
+COPY backend/package*.json ./
+RUN npm install
+COPY backend/ .
+RUN npx prisma generate
+RUN npm run build
+RUN test -f dist/main.js || (echo "Build failed" && exit 1)
+
+FROM base AS runner
+ENV NODE_ENV=production
+COPY --from=deps /app/node_modules ./node_modules
+COPY --from=builder /app/dist ./dist
+COPY --from=builder /app/prisma ./prisma
+COPY --from=builder /app/package*.json ./
+EXPOSE 3001
+CMD ["sh", "-c", "npx prisma generate && npx prisma db push --accept-data-loss 2>/dev/null || true; exec node dist/main.js"]

@@ -8,11 +8,7 @@ export class AppController {
       message: 'Barber CRM API',
       docs: '/api/docs',
       version: '1.0',
+      health: true,
     };
-  }
-
-  @Get('health')
-  health() {
-    return { ok: true };
   }
 }
