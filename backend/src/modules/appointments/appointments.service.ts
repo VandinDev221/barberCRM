@@ -121,7 +121,9 @@ export class AppointmentsService {
         services: { include: { service: true } },
       },
     });
-    const fromPublic = (apt as { fromPublicLink?: boolean }).fromPublicLink;
+    const fromPublic =
+      (apt as { fromPublicLink?: boolean }).fromPublicLink ||
+      (apt.notes != null && apt.notes.includes('link público'));
     if (fromPublic && updated.client.phone) {
       const dateStr = formatDateTimePtBr(new Date(apt.startAt));
       const message = `Olá ${updated.client.name}! Seu agendamento foi confirmado para ${dateStr}. Até lá!`;

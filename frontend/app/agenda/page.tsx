@@ -16,9 +16,15 @@ type Appointment = {
   endAt: string;
   status: string;
   fromPublicLink?: boolean;
+  notes?: string | null;
   client: { name: string; phone: string };
   services: { service: { name: string }; price: number }[];
 };
+
+function isPendingPublicConfirmation(apt: Appointment): boolean {
+  const fromPublic = apt.fromPublicLink || (apt.notes != null && apt.notes.includes('link público'));
+  return fromPublic && apt.status === 'scheduled';
+}
 
 export default function AgendaPage() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
@@ -51,9 +57,7 @@ export default function AgendaPage() {
     if (itemsByDay[day]) itemsByDay[day].push(apt);
   });
 
-  const pendingConfirmation = (data?.items ?? []).filter(
-    (apt) => apt.fromPublicLink && apt.status === 'scheduled'
-  );
+  const pendingConfirmation = (data?.items ?? []).filter(isPendingPublicConfirmation);
 
   return (
     <div className="p-4 sm:p-6">
@@ -129,13 +133,13 @@ export default function AgendaPage() {
                           ? 'border-muted bg-muted/50 opacity-60'
                           : apt.status === 'completed'
                           ? 'border-green-500/50 bg-green-500/10'
-                          : apt.fromPublicLink && apt.status === 'scheduled'
+                          : isPendingPublicConfirmation(apt)
                           ? 'border-amber-500/50 bg-amber-500/10'
                           : 'border-border'
                       }`}
                     >
                       <p className="font-medium">{apt.client.name}</p>
-                      {apt.fromPublicLink && apt.status === 'scheduled' && (
+                      {isPendingPublicConfirmation(apt) && (
                         <p className="text-amber-700 dark:text-amber-400 text-[10px] font-medium">Aguardando confirmação</p>
                       )}
                       <p className="text-muted-foreground">
@@ -143,7 +147,7 @@ export default function AgendaPage() {
                       </p>
                       {apt.status === 'scheduled' || apt.status === 'confirmed' ? (
                         <div className="mt-2 flex flex-col gap-1.5">
-                          {apt.fromPublicLink && apt.status === 'scheduled' ? (
+                          {isPendingPublicConfirmation(apt) ? (
                             <Button
                               size="sm"
                               className="h-8 w-full text-xs bg-green-600 hover:bg-green-700"
