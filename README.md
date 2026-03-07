@@ -275,8 +275,10 @@ Em **Vercel → seu projeto → Settings → Environment Variables** adicione:
 
 Faça **Redeploy** do frontend após salvar.
 
+**Subir Evolution API com Docker (no próprio projeto):** na pasta `evolution-api/` há um `docker-compose.yml` pronto para rodar localmente. Para **produção (Barber na Vercel enviar WhatsApp)**, use o **deploy no Railway**: passo a passo em **[evolution-api/README.md](evolution-api/README.md)** na seção **"Deploy no Railway"** (template one-click ou deploy a partir deste repo).
+
 **Passo a passo rápido (Evolution API):**
-1. Tenha a Evolution API rodando (VPS ou serviço hospedado) e uma instância criada, com número conectado via QR Code.
+1. Tenha a Evolution API rodando (Docker na pasta `evolution-api/`, VPS ou Railway) e uma instância criada, com número conectado via QR Code.
 2. Na **Vercel** (projeto frontend): adicione `WHATSAPP_API_URL`, `WHATSAPP_PROVIDER=evolution` e `WHATSAPP_API_KEY`; faça Redeploy.
 3. No **Railway** (backend): adicione `WHATSAPP_WEBHOOK_URL=https://barber-painel.vercel.app/api/send-whatsapp`; redeploy do backend.
 4. Teste: agende pelo link público → na Agenda clique em **Confirmar e notificar WhatsApp** → o cliente deve receber a mensagem no WhatsApp.

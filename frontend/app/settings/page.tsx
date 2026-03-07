@@ -1,6 +1,9 @@
 'use client';
 
+import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { Button } from '@/components/ui/button';
+import { MessageCircle } from 'lucide-react';
 
 export default function SettingsPage() {
   return (
@@ -22,6 +25,23 @@ export default function SettingsPage() {
           <p className="text-sm text-muted-foreground pt-2">
             Em breve: lembretes por WhatsApp e campanhas de aniversário.
           </p>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <MessageCircle className="h-5 w-5" />
+            WhatsApp
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Notificações ao confirmar agendamento pelo link público. Verifique se o envio está funcionando.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Button asChild variant="outline">
+            <Link href="/settings/whatsapp-verificar">Verificar envio WhatsApp</Link>
+          </Button>
         </CardContent>
       </Card>
 

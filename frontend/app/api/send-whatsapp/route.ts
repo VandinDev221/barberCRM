@@ -7,6 +7,23 @@ import { NextRequest, NextResponse } from 'next/server';
  * No Railway (backend): WHATSAPP_WEBHOOK_URL = https://barber-painel.vercel.app/api/send-whatsapp
  * Na Vercel: WHATSAPP_API_URL, opcionalmente WHATSAPP_PROVIDER e headers (ver README).
  */
+
+/** GET: retorna status da configuração WhatsApp (para tela de verificação). Não expõe segredos. */
+export async function GET() {
+  const apiUrl = process.env.WHATSAPP_API_URL;
+  const provider = (process.env.WHATSAPP_PROVIDER || 'zapi').toLowerCase();
+  const hasKey = Boolean(process.env.WHATSAPP_API_KEY);
+  const configured = Boolean(apiUrl && apiUrl.startsWith('http'));
+  return NextResponse.json({
+    configured,
+    provider: configured ? provider : null,
+    hasApiKey: hasKey,
+    hint: configured
+      ? `URL configurada (${provider})${hasKey ? ', apikey definida' : ' — apikey não definida'}`
+      : 'WHATSAPP_API_URL não configurada na Vercel',
+  });
+}
+
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
