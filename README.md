@@ -130,6 +130,18 @@ Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado*
 
 Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquivo. O frontend (Vercel ou outro) deve apontar `NEXT_PUBLIC_API_URL` para a URL pública desse serviço.
 
+**Criar tabelas no banco (primeira vez):** se aparecer *"The table \`public.User\` does not exist"*, o schema ainda não foi aplicado no PostgreSQL do Railway. Rode **uma vez** na sua máquina (com a mesma `DATABASE_URL` do Railway):
+
+```bash
+cd backend
+# Use a DATABASE_URL do Railway (copie em Variables do serviço Postgres)
+set DATABASE_URL=postgresql://usuario:senha@host:porta/banco
+npx prisma db push
+npx prisma db seed
+```
+
+Ou no Railway: no serviço do **backend**, abra **Settings** → **Variables** e copie o valor de `DATABASE_URL`; no seu PC, no terminal na pasta `backend`, defina essa variável e execute `npx prisma db push` e `npx prisma db seed` (seed cria o usuário admin e dados de exemplo).
+
 **Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
 **Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** no Railway, em **Variables** do backend, adicione:

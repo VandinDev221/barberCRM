@@ -9,6 +9,7 @@ const nextConfig = {
     const useRewrite = apiUrl && apiUrl.startsWith('http') && !apiUrl.includes('localhost');
     if (!useRewrite) return [];
     return [
+      { source: '/api', destination: `${apiUrl}/api` },
       { source: '/api/proxy/:path*', destination: `${apiUrl}/api/:path*` },
       { source: '/api/:path*', destination: `${apiUrl}/api/:path*` },
     ];
