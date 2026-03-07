@@ -143,6 +143,8 @@ npx prisma db seed
 
 Ou no Railway: no serviço do **backend**, abra **Settings** → **Variables** e copie o valor de `DATABASE_URL`; no seu PC, no terminal na pasta `backend`, defina essa variável e execute `npx prisma db push` e `npx prisma db seed` (seed cria o usuário admin e dados de exemplo).
 
+**Erro 500 no /api/dashboard ou na Agenda:** se após um deploy novo a API retornar 500, o banco pode estar sem a coluna mais recente (ex.: `from_public_link`). Rode de novo **`npx prisma db push`** apontando para a `DATABASE_URL` do Railway (no seu PC, na pasta `backend`). Isso aplica as alterações do schema sem apagar dados.
+
 **Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
 **Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** no Railway, em **Variables** do backend, adicione:
