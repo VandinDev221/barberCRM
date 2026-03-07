@@ -21,6 +21,7 @@ export default function AgendarPage() {
   const [email, setEmail] = useState('');
   const [selectedIds, setSelectedIds] = useState<string[]>([]);
   const [loading, setLoading] = useState(false);
+  const [slotsLoading, setSlotsLoading] = useState(false);
   const [error, setError] = useState('');
   const [success, setSuccess] = useState(false);
 
@@ -45,12 +46,15 @@ export default function AgendarPage() {
     if (!date) {
       setSlots([]);
       setTime('');
+      setSlotsLoading(false);
       return;
     }
     setTime('');
+    setSlotsLoading(true);
     apiGet<{ slots: Slot[] }>(`/public/slots?date=${date}`)
       .then((r) => setSlots(r.slots || []))
-      .catch(() => setSlots([]));
+      .catch(() => setSlots([]))
+      .finally(() => setSlotsLoading(false));
   }, [date]);
 
   function toggleService(id: string) {
@@ -130,13 +134,17 @@ export default function AgendarPage() {
                   className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
                 />
               </div>
-              <div className="space-y-2">
+              <div className="space-y-2 w-full">
                 <Label>Horário</Label>
-                <div className="flex flex-wrap gap-2">
-                  {slots.length === 0 && date ? (
-                    <p className="text-sm text-muted-foreground">Nenhum horário disponível neste dia.</p>
-                  ) : (
-                    slots.map((s) => (
+                {!date ? (
+                  <p className="text-sm text-muted-foreground">Selecione uma data acima para ver os horários disponíveis.</p>
+                ) : slotsLoading ? (
+                  <p className="text-sm text-muted-foreground">Carregando horários...</p>
+                ) : slots.length === 0 ? (
+                  <p className="text-sm text-muted-foreground">Nenhum horário disponível neste dia.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-2">
+                    {slots.map((s) => (
                       <Button
                         key={s.time}
                         type="button"
@@ -146,9 +154,9 @@ export default function AgendarPage() {
                       >
                         {s.time}
                       </Button>
-                    ))
-                  )}
-                </div>
+                    ))}
+                  </div>
+                )}
               </div>
             </CardContent>
           </Card>

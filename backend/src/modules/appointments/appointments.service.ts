@@ -47,8 +47,12 @@ export class AppointmentsService {
     const where: Prisma.AppointmentWhereInput = { userId };
     if (startDate || endDate) {
       where.startAt = {};
-      if (startDate) (where.startAt as Prisma.DateTimeFilter).gte = new Date(startDate);
-      if (endDate) (where.startAt as Prisma.DateTimeFilter).lte = new Date(endDate);
+      if (startDate) (where.startAt as Prisma.DateTimeFilter).gte = new Date(startDate + 'T00:00:00');
+      if (endDate) {
+        const endOfDay = new Date(endDate + 'T00:00:00');
+        endOfDay.setHours(23, 59, 59, 999);
+        (where.startAt as Prisma.DateTimeFilter).lte = endOfDay;
+      }
     }
     if (status) where.status = status;
     const items = await this.prisma.appointment.findMany({
