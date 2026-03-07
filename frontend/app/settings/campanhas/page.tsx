@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiGet, apiPost } from '@/lib/api';
+import { apiGet } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,8 +29,18 @@ export default function CampanhasPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: (body: { clientIds: string[]; message: string }) =>
-      apiPost<{ sent: number; failed: number; total: number }>('/settings/campaign', body),
+    mutationFn: async (body: { phones: string[]; message: string }) => {
+      const res = await fetch('/api/campaign', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || res.statusText);
+      }
+      return res.json() as Promise<{ sent: number; failed: number; total: number }>;
+    },
   });
 
   const clients = data?.items ?? [];
@@ -54,10 +64,11 @@ export default function CampanhasPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (selectedIds.size === 0 || !message.trim()) return;
+    const phones = clients.filter((c) => selectedIds.has(c.id)).map((c) => c.phone);
     sendMutation.mutate(
-      { clientIds: Array.from(selectedIds), message: message.trim() },
+      { phones, message: message.trim() },
       {
-        onSuccess: (res) => {
+        onSuccess: () => {
           setMessage('');
           setSelectedIds(new Set());
         },
