@@ -10,4 +10,9 @@ export class AppController {
       version: '1.0',
     };
   }
+
+  @Get('health')
+  health() {
+    return { ok: true };
+  }
 }

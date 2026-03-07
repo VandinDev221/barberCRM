@@ -128,7 +128,7 @@ Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado*
    - `BARBER_TZ_OFFSET_HOURS` — fuso do barbeiro para o link público (Brasil = **3**). **Obrigatório** para os horários ocupados no link público baterem com a Agenda: sem isso, no servidor em UTC aparecem 12:00/12:30 ocupados em vez de 09:00/09:30. Depois de definir, faça **Redeploy** do backend.
    Se faltar `JWT_SECRET` ou `JWT_REFRESH_SECRET`, a API não sobe e exibe erro pedindo para configurar nas variáveis do deploy.
 4. Não altere Build/Start: o Railpack vai usar `npm install`, `npm run build` e `npm start` a partir da pasta `backend`. O script `start` do backend já está como `node dist/main` para produção.
-5. **Conferir se o deploy está atualizado:** abra no navegador `https://SEU-BACKEND.up.railway.app/api/notifications/health`. Deve retornar `{"ok":true,"module":"notifications"}`. Se retornar **404**, o Root Directory não está como `backend` ou o último deploy não usou o código novo — defina **Root Directory** = **`backend`** e faça **Redeploy**.
+5. **Conferir se o deploy está atualizado:** abra `https://SEU-BACKEND.up.railway.app/api/health`. Deve retornar `{"ok":true}`. Se retornar 404, o build pode estar usando cache antigo: em **Variables** do backend, adicione **`NO_CACHE`** = **`1`**, faça **Redeploy**, e depois pode remover a variável. Confirme também que **Root Directory** = **`backend`**.
 
 Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquivo. O frontend (Vercel ou outro) deve apontar `NEXT_PUBLIC_API_URL` para a URL pública desse serviço.
 
