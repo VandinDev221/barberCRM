@@ -3,8 +3,8 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // Railway detecta "linux-musl"; incluir ambos para o engine estar disponível
-  binaryTargets = ["linux-musl-openssl-3.0.x", "linux-musl"]
+  // native = seu OS local (Windows/Mac/Linux). linux-musl = deploy no Railway.
+  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
 }
 
 datasource db {
