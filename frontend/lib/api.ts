@@ -19,9 +19,15 @@ export async function api<T>(
   const url = API_URL ? `${API_URL}/api${path}` : `/api${path}`;
   const res = await fetch(url, { ...options, headers });
 
-  if (res.status === 404 && typeof window !== 'undefined' && !window.location.hostname.includes('localhost')) {
+  if (res.status === 404 && typeof window !== 'undefined') {
+    const isProduction = !window.location.hostname.includes('localhost');
+    if (isProduction && !API_URL) {
+      throw new Error(
+        'API não configurada. Na Vercel, adicione NEXT_PUBLIC_API_URL com a URL do backend (ex: https://seu-backend.up.railway.app).'
+      );
+    }
     throw new Error(
-      'API não configurada. Na Vercel, adicione a variável NEXT_PUBLIC_API_URL com a URL pública do backend (ex: https://seu-backend.up.railway.app).'
+      'Rota não encontrada (404). Se for campanha ou função nova, faça redeploy do backend no Railway.'
     );
   }
   if (res.status === 401) {
