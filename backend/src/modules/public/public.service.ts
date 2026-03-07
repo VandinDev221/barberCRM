@@ -121,12 +121,8 @@ export class PublicService {
           email: dto.email ?? null,
         },
       });
-    } else if (dto.name && client.name !== dto.name) {
-      await this.prisma.client.update({
-        where: { id: client.id },
-        data: { name: dto.name, email: dto.email ?? client.email },
-      });
     }
+    // Cliente já existe (por telefone): não alterar nome/email para não sobrescrever o cadastro
 
     const appointment = await this.prisma.appointment.create({
       data: {
