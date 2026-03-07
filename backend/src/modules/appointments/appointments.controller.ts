@@ -46,14 +46,13 @@ export class AppointmentsController {
     return this.appointments.findOne(userId, id);
   }
 
-  @Patch(':id')
-  @ApiOperation({ summary: 'Atualizar agendamento' })
-  update(
+  @Patch(':id/confirm')
+  @ApiOperation({ summary: 'Confirmar agendamento (link público) e notificar cliente por WhatsApp' })
+  confirm(
     @CurrentUser('sub') userId: string,
     @Param('id') id: string,
-    @Body() dto: UpdateAppointmentDto,
   ) {
-    return this.appointments.update(userId, id, dto);
+    return this.appointments.confirmAppointment(userId, id);
   }
 
   @Patch(':id/status')
@@ -64,6 +63,16 @@ export class AppointmentsController {
     @Body('status') status: string,
   ) {
     return this.appointments.setStatus(userId, id, status);
+  }
+
+  @Patch(':id')
+  @ApiOperation({ summary: 'Atualizar agendamento' })
+  update(
+    @CurrentUser('sub') userId: string,
+    @Param('id') id: string,
+    @Body() dto: UpdateAppointmentDto,
+  ) {
+    return this.appointments.update(userId, id, dto);
   }
 
   @Delete(':id')

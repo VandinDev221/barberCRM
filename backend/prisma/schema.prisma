@@ -71,16 +71,17 @@ model Service {
 }
 
 model Appointment {
-  id          String    @id @default(cuid())
-  userId      String    @map("user_id")
-  clientId    String    @map("client_id")
-  startAt     DateTime  @map("start_at")
-  endAt       DateTime  @map("end_at")
-  status      String    @map("status") // scheduled, confirmed, completed, cancelled
-  notes       String?   @map("notes")
-  reminderSent Boolean  @default(false) @map("reminder_sent")
-  createdAt   DateTime  @default(now()) @map("created_at")
-  updatedAt   DateTime  @updatedAt @map("updated_at")
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  clientId        String    @map("client_id")
+  startAt         DateTime  @map("start_at")
+  endAt           DateTime  @map("end_at")
+  status          String    @map("status") // scheduled, confirmed, completed, cancelled
+  notes           String?   @map("notes")
+  reminderSent    Boolean   @default(false) @map("reminder_sent")
+  fromPublicLink  Boolean   @default(false) @map("from_public_link")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
 
   user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)

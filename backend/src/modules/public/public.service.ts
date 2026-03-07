@@ -132,6 +132,7 @@ export class PublicService {
         endAt,
         status: 'scheduled',
         notes: 'Agendamento pelo link público',
+        fromPublicLink: true,
         services: {
           create: serviceItems,
         },

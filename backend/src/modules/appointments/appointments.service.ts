@@ -1,15 +1,27 @@
 import { Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
+import { NotificationService } from '../notification/notification.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { Prisma } from '@prisma/client';
+
+function formatDateTimePtBr(date: Date): string {
+  return date.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+  });
+}
 
 @Injectable()
 export class AppointmentsService {
   constructor(
     private prisma: PrismaService,
     private loyalty: LoyaltyService,
+    private notification: NotificationService,
   ) {}
 
   async create(userId: string, dto: CreateAppointmentDto) {
@@ -94,6 +106,28 @@ export class AppointmentsService {
         services: { include: { service: true } },
       },
     });
+  }
+
+  async confirmAppointment(userId: string, id: string) {
+    const apt = await this.findOne(userId, id);
+    if (apt.status !== 'scheduled') {
+      throw new NotFoundException('Agendamento não está aguardando confirmação.');
+    }
+    const updated = await this.prisma.appointment.update({
+      where: { id },
+      data: { status: 'confirmed' },
+      include: {
+        client: true,
+        services: { include: { service: true } },
+      },
+    });
+    const fromPublic = (apt as { fromPublicLink?: boolean }).fromPublicLink;
+    if (fromPublic && updated.client.phone) {
+      const dateStr = formatDateTimePtBr(new Date(apt.startAt));
+      const message = `Olá ${updated.client.name}! Seu agendamento foi confirmado para ${dateStr}. Até lá!`;
+      await this.notification.sendWhatsApp(updated.client.phone, message);
+    }
+    return updated;
   }
 
   async setStatus(userId: string, id: string, status: string) {

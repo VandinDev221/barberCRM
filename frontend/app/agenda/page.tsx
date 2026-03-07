@@ -15,6 +15,7 @@ type Appointment = {
   startAt: string;
   endAt: string;
   status: string;
+  fromPublicLink?: boolean;
   client: { name: string; phone: string };
   services: { service: { name: string }; price: number }[];
 };
@@ -34,6 +35,11 @@ export default function AgendaPage() {
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiPatch(`/appointments/${id}/status`, { status }),
+    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+  });
+
+  const confirmAppointment = useMutation({
+    mutationFn: (id: string) => apiPatch(`/appointments/${id}/confirm`, {}),
     onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
   });
 
@@ -106,15 +112,30 @@ export default function AgendaPage() {
                           ? 'border-muted bg-muted/50 opacity-60'
                           : apt.status === 'completed'
                           ? 'border-green-500/50 bg-green-500/10'
+                          : apt.fromPublicLink && apt.status === 'scheduled'
+                          ? 'border-amber-500/50 bg-amber-500/10'
                           : 'border-border'
                       }`}
                     >
                       <p className="font-medium">{apt.client.name}</p>
+                      {apt.fromPublicLink && apt.status === 'scheduled' && (
+                        <p className="text-amber-700 dark:text-amber-400 text-[10px] font-medium">Aguardando confirmação</p>
+                      )}
                       <p className="text-muted-foreground">
                         {format(new Date(apt.startAt), 'HH:mm')} – {formatCurrency(total)}
                       </p>
                       {apt.status === 'scheduled' || apt.status === 'confirmed' ? (
                         <div className="mt-2 flex flex-col gap-1.5">
+                          {apt.fromPublicLink && apt.status === 'scheduled' ? (
+                            <Button
+                              size="sm"
+                              className="h-8 w-full text-xs bg-green-600 hover:bg-green-700"
+                              onClick={() => confirmAppointment.mutate(apt.id)}
+                              disabled={confirmAppointment.isPending}
+                            >
+                              {confirmAppointment.isPending ? '...' : 'Confirmar e notificar WhatsApp'}
+                            </Button>
+                          ) : null}
                           <Button
                             size="sm"
                             className="h-8 w-full text-xs"

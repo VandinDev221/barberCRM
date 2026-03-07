@@ -231,7 +231,8 @@ Para **contratar ou saber valores**: **contato@seudominio.com** (substitua pelo 
 
 ## Funcionalidades já incluídas
 
-- **Link público de agendamento:** qualquer pessoa pode agendar em `/agendar` (ex: `https://seu-site.com/agendar`) sem login.
+- **Link público de agendamento:** qualquer pessoa pode agendar em `/agendar` (ex: `https://seu-site.com/agendar`) sem login. O admin vê na **Agenda** os agendamentos como "Aguardando confirmação" e pode clicar em **Confirmar e notificar WhatsApp**; após confirmar, o sistema envia uma mensagem para o WhatsApp do cliente (se configurado).
+- **Notificação WhatsApp na confirmação:** defina **`WHATSAPP_WEBHOOK_URL`** (e opcionalmente **`WHATSAPP_WEBHOOK_HEADERS`** em JSON) nas variáveis do backend. O sistema faz POST com `{ "phone": "5511999999999", "message": "..." }`. Conecte a um serviço que envia WhatsApp (Z-API, Evolution API, Zapier, etc.).
 - **Exportação CSV:** na tela Relatórios, use "Exportar CSV" em Faturamento, Serviços mais vendidos e Clientes inativos.
 - **Backup:** script em `backend/scripts/backup.sh` (e `.ps1` no Windows) para backup do PostgreSQL; veja seção "Backup do banco" acima.
 
