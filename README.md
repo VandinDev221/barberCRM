@@ -124,7 +124,8 @@ Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado*
 3. **Variáveis de ambiente** (obrigatórias): no serviço do backend, vá em **Settings → Variables** e adicione:
    - `DATABASE_URL` — URL do PostgreSQL (ex.: do próprio Railway ou externo)
    - `JWT_SECRET` — string segura para assinar o token (ex.: `openssl rand -base64 32`)
-   - `JWT_REFRESH_SECRET` — outra string segura para o refresh token  
+   - `JWT_REFRESH_SECRET` — outra string segura para o refresh token
+   - `BARBER_TZ_OFFSET_HOURS` — fuso do barbeiro para o link público (Brasil = **3**). **Obrigatório** para os horários ocupados no link público baterem com a Agenda: sem isso, no servidor em UTC aparecem 12:00/12:30 ocupados em vez de 09:00/09:30. Depois de definir, faça **Redeploy** do backend.
    Se faltar `JWT_SECRET` ou `JWT_REFRESH_SECRET`, a API não sobe e exibe erro pedindo para configurar nas variáveis do deploy.
 4. Não altere Build/Start: o Railpack vai usar `npm install`, `npm run build` e `npm start` a partir da pasta `backend`. O script `start` do backend já está como `node dist/main` para produção.
 

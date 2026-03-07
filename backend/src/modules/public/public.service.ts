@@ -6,6 +6,16 @@ const SLOT_MINUTES = 30;
 const WORK_START = 8;
 const WORK_END = 18;
 
+/** Horas a somar ao horário local do barbeiro para obter UTC. Brasil = 3 (UTC-3). Usado para os horários do link público baterem com a Agenda. */
+function getBarberTzOffsetHours(): number {
+  const v = process.env.BARBER_TZ_OFFSET_HOURS;
+  if (v !== undefined && v !== '') {
+    const n = parseInt(v, 10);
+    if (!isNaN(n)) return n;
+  }
+  return 3;
+}
+
 @Injectable()
 export class PublicService {
   constructor(private prisma: PrismaService) {}
@@ -31,15 +41,19 @@ export class PublicService {
     const userId = await this.getDefaultUserId();
     const date = new Date(dateStr + 'T00:00:00');
     if (isNaN(date.getTime())) throw new BadRequestException('Data inválida');
-    const dayStart = new Date(date);
-    dayStart.setHours(WORK_START, 0, 0, 0);
-    const dayEnd = new Date(date);
-    dayEnd.setHours(WORK_END, 0, 0, 0);
+
+    const tzOffset = getBarberTzOffsetHours();
+    const [y, m, d] = dateStr.split('-').map(Number);
+    const pad = (n: number) => n.toString().padStart(2, '0');
+
+    const workStartUTC = new Date(Date.UTC(y, m - 1, d, WORK_START + tzOffset, 0, 0));
+    const workEndUTC = new Date(Date.UTC(y, m - 1, d, WORK_END + tzOffset, 0, 0));
+    const dayEndUTC = new Date(Date.UTC(y, m - 1, d, 24 + tzOffset, 0, 0));
 
     const appointments = await this.prisma.appointment.findMany({
       where: {
         userId,
-        startAt: { gte: dayStart, lt: dayEnd },
+        startAt: { gte: workStartUTC, lt: dayEndUTC },
         status: { notIn: ['cancelled'] },
       },
       select: { startAt: true, endAt: true },
@@ -47,7 +61,7 @@ export class PublicService {
 
     const slots: { time: string; endTime: string; available: boolean }[] = [];
     const slotMs = SLOT_MINUTES * 60 * 1000;
-    for (let t = dayStart.getTime(); t < dayEnd.getTime(); t += slotMs) {
+    for (let t = workStartUTC.getTime(); t < workEndUTC.getTime(); t += slotMs) {
       const slotStart = new Date(t);
       const slotEnd = new Date(t + slotMs);
       const overlaps = appointments.some(
@@ -56,13 +70,17 @@ export class PublicService {
           (slotEnd > (a.startAt as Date) && slotEnd <= (a.endAt as Date)) ||
           (slotStart <= (a.startAt as Date) && slotEnd >= (a.endAt as Date))
       );
-      const h = slotStart.getHours();
-      const m = slotStart.getMinutes();
-      const eh = slotEnd.getHours();
-      const em = slotEnd.getMinutes();
+      const localHour = slotStart.getUTCHours() - tzOffset;
+      const localMin = slotStart.getUTCMinutes();
+      const localHourEnd = slotEnd.getUTCHours() - tzOffset;
+      const localMinEnd = slotEnd.getUTCMinutes();
+      const h = ((localHour % 24) + 24) % 24;
+      const m = localMin;
+      const eh = ((localHourEnd % 24) + 24) % 24;
+      const em = localMinEnd;
       slots.push({
-        time: `${h.toString().padStart(2, '0')}:${m.toString().padStart(2, '0')}`,
-        endTime: `${eh.toString().padStart(2, '0')}:${em.toString().padStart(2, '0')}`,
+        time: `${pad(h)}:${pad(m)}`,
+        endTime: `${pad(eh)}:${pad(em)}`,
         available: !overlaps,
       });
     }
@@ -73,7 +91,8 @@ export class PublicService {
     const userId = await this.getDefaultUserId();
     const [year, month, day] = dto.date.split('-').map(Number);
     const [hour, min] = dto.time.split(':').map(Number);
-    const startAt = new Date(year, month - 1, day, hour, min, 0);
+    const tzOffset = getBarberTzOffsetHours();
+    const startAt = new Date(Date.UTC(year, month - 1, day, hour + tzOffset, min, 0));
     if (isNaN(startAt.getTime())) throw new BadRequestException('Data/hora inválida');
 
     const services = await this.prisma.service.findMany({
