@@ -6,13 +6,17 @@ import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
 import { Prisma } from '@prisma/client';
 
+/** Formata data/hora para exibição na mensagem WhatsApp no fuso do barbeiro (evita mostrar UTC). */
 function formatDateTimePtBr(date: Date): string {
-  return date.toLocaleDateString('pt-BR', {
+  const offsetHours = parseInt(process.env.BARBER_TZ_OFFSET_HOURS ?? '3', 10);
+  const localTime = new Date(date.getTime() - offsetHours * 60 * 60 * 1000);
+  return localTime.toLocaleDateString('pt-BR', {
     weekday: 'long',
     day: 'numeric',
     month: 'long',
     hour: '2-digit',
     minute: '2-digit',
+    timeZone: 'UTC',
   });
 }
 
@@ -155,6 +159,11 @@ export class AppointmentsService {
         },
       });
       await this.loyalty.addVisit(apt.clientId);
+    }
+    if (status === 'cancelled' && apt.client.phone) {
+      const dateStr = formatDateTimePtBr(new Date(apt.startAt));
+      const message = `Olá ${apt.client.name}! Seu agendamento de ${dateStr} foi cancelado. Qualquer dúvida, entre em contato.`;
+      await this.notification.sendWhatsApp(apt.client.phone, message);
     }
     return this.update(userId, id, { status: status as any });
   }
