@@ -1,4 +1,4 @@
-import { BadRequestException, Body, Controller, Post, UseGuards } from '@nestjs/common';
+import { BadRequestException, Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
@@ -6,8 +6,6 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationService } from './notification.service';
 
 @ApiTags('notifications')
-@ApiBearerAuth()
-@UseGuards(JwtAuthGuard)
 @Controller('notifications')
 export class NotificationController {
   constructor(
@@ -15,7 +13,15 @@ export class NotificationController {
     private notification: NotificationService,
   ) {}
 
+  @Get('health')
+  @ApiOperation({ summary: 'Verificar se o módulo de notificações está ativo (não exige auth)' })
+  health() {
+    return { ok: true, module: 'notifications' };
+  }
+
   @Post('campaign')
+  @ApiBearerAuth()
+  @UseGuards(JwtAuthGuard)
   @ApiOperation({ summary: 'Enviar campanha: mensagem WhatsApp para clientes selecionados' })
   async sendCampaign(
     @CurrentUser('sub') userId: string,
