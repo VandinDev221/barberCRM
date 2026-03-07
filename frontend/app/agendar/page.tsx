@@ -52,10 +52,26 @@ export default function AgendarPage() {
     setTime('');
     setSlotsLoading(true);
     apiGet<{ slots: Slot[] }>(`/public/slots?date=${date}`, { cache: 'no-store' })
-      .then((r) => setSlots(r.slots || []))
+      .then((r) => {
+        const list = r.slots || [];
+        const isToday = date === minDate;
+        if (!isToday) {
+          setSlots(list);
+          return;
+        }
+        const now = new Date();
+        const nowMinutes = now.getHours() * 60 + now.getMinutes();
+        setSlots(
+          list.filter((s) => {
+            const [h, m] = s.time.split(':').map(Number);
+            const slotMinutes = h * 60 + m;
+            return slotMinutes > nowMinutes;
+          })
+        );
+      })
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false));
-  }, [date]);
+  }, [date, minDate]);
 
   function toggleService(id: string) {
     setSelectedIds((prev) => (prev.includes(id) ? prev.filter((s) => s !== id) : [...prev, id]));
