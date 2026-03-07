@@ -234,9 +234,70 @@ Para **contratar ou saber valores**: **contato@seudominio.com** (substitua pelo 
 ## Funcionalidades já incluídas
 
 - **Link público de agendamento:** qualquer pessoa pode agendar em `/agendar` (ex: `https://seu-site.com/agendar`) sem login. O admin vê na **Agenda** os agendamentos como "Aguardando confirmação" e pode clicar em **Confirmar e notificar WhatsApp**; após confirmar, o sistema envia uma mensagem para o WhatsApp do cliente (se configurado).
-- **Notificação WhatsApp na confirmação:** defina **`WHATSAPP_WEBHOOK_URL`** (e opcionalmente **`WHATSAPP_WEBHOOK_HEADERS`** em JSON) nas variáveis do backend. O sistema faz POST com `{ "phone": "5511999999999", "message": "..." }`. Conecte a um serviço que envia WhatsApp (Z-API, Evolution API, Zapier, etc.).
+- **Notificação WhatsApp na confirmação:** defina **`WHATSAPP_WEBHOOK_URL`** (e opcionalmente **`WHATSAPP_WEBHOOK_HEADERS`** em JSON) nas variáveis do backend. O sistema faz POST com `{ "phone": "5511999999999", "message": "..." }`. Conecte a um serviço que envia WhatsApp (Z-API, Evolution API, Zapier, etc.). Veja abaixo **"Notificação WhatsApp com Vercel"** para usar a função pronta no frontend.
 - **Exportação CSV:** na tela Relatórios, use "Exportar CSV" em Faturamento, Serviços mais vendidos e Clientes inativos.
 - **Backup:** script em `backend/scripts/backup.sh` (e `.ps1` no Windows) para backup do PostgreSQL; veja seção "Backup do banco" acima.
+
+## Notificação WhatsApp com Vercel
+
+Para o aviso por WhatsApp ao confirmar agendamento do link público, você pode usar a **rota de webhook** que já existe no frontend (Vercel). O backend (Railway) chama essa URL; a Vercel encaminha para sua API de WhatsApp.
+
+### 1. APIs não oficiais que você pode usar
+
+Todas são **não oficiais** (não são a API oficial Meta/WhatsApp Business). O sistema já suporta:
+
+| API | Site / tipo | Uso no Brasil | Observação |
+|-----|-------------|----------------|------------|
+| **Z-API** | [z-api.io](https://www.z-api.io) | Muito usado, pago, estável | Body: `phone` + `message`. Header opcional: `Client-Token`. |
+| **Evolution API** | Open source (self-host ou hospedado) | Grátis se hospedar; instável em alguns hosts | Body: `number` + `text`. Defina `WHATSAPP_PROVIDER=evolution` na Vercel. |
+| **Outras** | Uazapi, etc. | Se aceitarem `phone`+`message` em POST | Use como Z-API (deixe `WHATSAPP_PROVIDER` em branco). |
+
+Crie conta/instância no provedor escolhido e anote a **URL de envio** e o **token** (se houver).
+
+### 2. Variáveis na Vercel (projeto do frontend)
+
+Em **Vercel → seu projeto → Settings → Environment Variables** adicione:
+
+**Z-API (padrão):**
+
+| Variável | Valor |
+|----------|--------|
+| `WHATSAPP_API_URL` | `https://api.z-api.io/instances/SUA_INSTANCIA/token/SEU_TOKEN/send-text` |
+| `WHATSAPP_CLIENT_TOKEN` | (opcional) Token de segurança da conta Z-API, no header `Client-Token`. |
+
+**Evolution API:**
+
+| Variável | Valor |
+|----------|--------|
+| `WHATSAPP_API_URL` | `https://SUA_URL_DA_EVOLUTION/message/sendText/NOME_DA_INSTANCIA` (ex.: `https://evolution.seudominio.com/message/sendText/minha-instancia`) |
+| `WHATSAPP_PROVIDER` | `evolution` (obrigatório para Evolution) |
+| `WHATSAPP_API_KEY` | Chave da API (Evolution usa header `apikey`). Crie em Configurações da instância. |
+
+Faça **Redeploy** do frontend após salvar.
+
+**Passo a passo rápido (Evolution API):**
+1. Tenha a Evolution API rodando (VPS ou serviço hospedado) e uma instância criada, com número conectado via QR Code.
+2. Na **Vercel** (projeto frontend): adicione `WHATSAPP_API_URL`, `WHATSAPP_PROVIDER=evolution` e `WHATSAPP_API_KEY`; faça Redeploy.
+3. No **Railway** (backend): adicione `WHATSAPP_WEBHOOK_URL=https://barber-painel.vercel.app/api/send-whatsapp`; redeploy do backend.
+4. Teste: agende pelo link público → na Agenda clique em **Confirmar e notificar WhatsApp** → o cliente deve receber a mensagem no WhatsApp.
+
+**Evolution API – resumo:** A Evolution usa o body `{ "number": "5511999999999", "textMessage": { "text": "mensagem" } }` e o header `apikey` para autenticação. O sistema já envia nesse formato quando `WHATSAPP_PROVIDER=evolution`. Você precisa ter a Evolution rodando (self-host em VPS ou usar um serviço que hospede), criar uma instância, conectar um número via QR Code e copiar a URL base + nome da instância + apikey para as variáveis acima.
+
+### 3. Variável no Railway (backend)
+
+No serviço do **backend** no Railway, em **Settings → Variables** adicione:
+
+| Variável | Valor |
+|----------|--------|
+| `WHATSAPP_WEBHOOK_URL` | `https://barber-painel.vercel.app/api/send-whatsapp` |
+
+Assim, quando o admin clicar em **Confirmar e notificar WhatsApp** na Agenda, o backend fará POST para essa URL; a função na Vercel recebe e reenvia para a API de WhatsApp com as variáveis que você configurou.
+
+### 4. Testar
+
+Faça um agendamento pelo link público, depois na Agenda clique em **Confirmar e notificar WhatsApp** no card. O cliente deve receber a mensagem no número cadastrado (com DDD, ex.: 11999999999).
+
+Se a sua API usar outro formato de corpo (ex.: campos `number` e `text`), edite o arquivo `frontend/app/api/send-whatsapp/route.ts` e adapte o `body` do `fetch` para o formato esperado.
 
 ## Roadmap (futuras versões)
 
