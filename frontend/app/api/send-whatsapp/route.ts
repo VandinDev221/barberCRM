@@ -60,7 +60,9 @@ export async function POST(request: NextRequest) {
     }
 
     const phoneOnly = phone.replace(/\D/g, '');
-    const number = phoneOnly.length <= 10 ? '55' + phoneOnly : phoneOnly;
+    // Brasil: 10 ou 11 dígitos (DDD + número) → adiciona 55. Já com 12+ dígitos (ex.: 551199...) mantém.
+    const number =
+      phoneOnly.length <= 11 ? '55' + phoneOnly : phoneOnly;
 
     const payload =
       provider === 'evolution'
