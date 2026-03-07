@@ -30,7 +30,7 @@ export default function CampanhasPage() {
 
   const sendMutation = useMutation({
     mutationFn: (body: { clientIds: string[]; message: string }) =>
-      apiPost<{ sent: number; failed: number; total: number }>('/notifications/campaign', body),
+      apiPost<{ sent: number; failed: number; total: number }>('/settings/campaign', body),
   });
 
   const clients = data?.items ?? [];
