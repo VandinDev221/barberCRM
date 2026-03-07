@@ -14,6 +14,7 @@ import { DashboardModule } from './modules/dashboard/dashboard.module';
 import { LoyaltyModule } from './modules/loyalty/loyalty.module';
 import { SettingsModule } from './modules/settings/settings.module';
 import { PublicModule } from './modules/public/public.module';
+import { NotificationModule } from './modules/notification/notification.module';
 import { PrismaModule } from './common/prisma/prisma.module';
 
 @Module({
@@ -42,6 +43,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
     LoyaltyModule,
     SettingsModule,
     PublicModule,
+    NotificationModule,
   ],
   controllers: [AppController],
 })
