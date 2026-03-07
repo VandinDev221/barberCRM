@@ -34,7 +34,7 @@ async function bootstrap() {
   const corsOrigin = config.get('CORS_ORIGIN');
   app.enableCors({
     origin: corsOrigin
-      ? corsOrigin.split(',').map((o) => o.trim())
+      ? corsOrigin.split(',').map((o: string) => o.trim())
       : true,
     credentials: true,
     methods: ['GET', 'POST', 'PUT', 'PATCH', 'DELETE', 'OPTIONS'],
