@@ -283,7 +283,7 @@ Faça **Redeploy** do frontend após salvar.
 3. No **Railway** (backend): adicione `WHATSAPP_WEBHOOK_URL=https://barber-painel.vercel.app/api/send-whatsapp`; redeploy do backend.
 4. Teste: agende pelo link público → na Agenda clique em **Confirmar e notificar WhatsApp** → o cliente deve receber a mensagem no WhatsApp.
 
-**Evolution API – resumo:** A Evolution usa o body `{ "number": "5511999999999", "textMessage": { "text": "mensagem" } }` e o header `apikey` para autenticação. O sistema já envia nesse formato quando `WHATSAPP_PROVIDER=evolution`. Você precisa ter a Evolution rodando (self-host em VPS ou usar um serviço que hospede), criar uma instância, conectar um número via QR Code e copiar a URL base + nome da instância + apikey para as variáveis acima.
+**Evolution API – resumo:** A Evolution (evoapicloud) usa o body `{ "number": "5511999999999", "text": "mensagem" }` e o header `apikey` para autenticação. O sistema já envia nesse formato quando `WHATSAPP_PROVIDER=evolution`. Você precisa ter a Evolution rodando (self-host em VPS ou usar um serviço que hospede), criar uma instância, conectar um número via QR Code e copiar a URL base + nome da instância + apikey para as variáveis acima.
 
 ### 3. Variável no Railway (backend)
 

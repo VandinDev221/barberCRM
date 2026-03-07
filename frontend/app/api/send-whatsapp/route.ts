@@ -64,7 +64,7 @@ export async function POST(request: NextRequest) {
 
     const payload =
       provider === 'evolution'
-        ? { number, textMessage: { text: message } }
+        ? { number, text: message }
         : { phone: number, message };
 
     const res = await fetch(apiUrl, {
