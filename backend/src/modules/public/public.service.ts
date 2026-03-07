@@ -29,6 +29,23 @@ export class PublicService {
     return user.id;
   }
 
+  /** Busca cliente por telefone (normalizado) ou e-mail para evitar duplicidade no link público. */
+  private async findClientByPhoneOrEmail(
+    userId: string,
+    normalizedPhone: string,
+    email: string | null,
+  ) {
+    const clients = await this.prisma.client.findMany({
+      where: { userId },
+      select: { id: true, name: true, phone: true, email: true },
+    });
+    return clients.find(
+      (c) =>
+        c.phone.replace(/\D/g, '') === normalizedPhone ||
+        (email != null && c.email != null && c.email.trim().toLowerCase() === email),
+    ) ?? null;
+  }
+
   async getServices() {
     const userId = await this.getDefaultUserId();
     return this.prisma.service.findMany({
@@ -109,20 +126,21 @@ export class PublicService {
     });
     const endAt = new Date(startAt.getTime() + totalMinutes * 60 * 1000);
 
-    let client = await this.prisma.client.findFirst({
-      where: { userId, phone: dto.phone },
-    });
+    const normalizedPhone = dto.phone.replace(/\D/g, '');
+    const emailNorm = dto.email?.trim().toLowerCase() || null;
+
+    let client = await this.findClientByPhoneOrEmail(userId, normalizedPhone, emailNorm);
     if (!client) {
       client = await this.prisma.client.create({
         data: {
           userId,
           name: dto.name,
-          phone: dto.phone,
-          email: dto.email ?? null,
+          phone: normalizedPhone,
+          email: dto.email?.trim() || null,
         },
       });
     }
-    // Cliente já existe (por telefone): não alterar nome/email para não sobrescrever o cadastro
+    // Cliente já existe (por telefone ou e-mail): não alterar nome/email para não sobrescrever o cadastro
 
     const appointment = await this.prisma.appointment.create({
       data: {
