@@ -235,6 +235,7 @@ Para **contratar ou saber valores**: **contato@seudominio.com** (substitua pelo 
 
 - **Link público de agendamento:** qualquer pessoa pode agendar em `/agendar` (ex: `https://seu-site.com/agendar`) sem login. O admin vê na **Agenda** os agendamentos como "Aguardando confirmação" e pode clicar em **Confirmar e notificar WhatsApp**; após confirmar, o sistema envia uma mensagem para o WhatsApp do cliente (se configurado).
 - **Notificação WhatsApp na confirmação:** defina **`WHATSAPP_WEBHOOK_URL`** (e opcionalmente **`WHATSAPP_WEBHOOK_HEADERS`** em JSON) nas variáveis do backend. O sistema faz POST com `{ "phone": "5511999999999", "message": "..." }`. Conecte a um serviço que envia WhatsApp (Z-API, Evolution API, Zapier, etc.). Veja abaixo **"Notificação WhatsApp com Vercel"** para usar a função pronta no frontend.
+- **Mensagem de aniversário (automática):** todo dia às 09:00 (fuso do barbeiro), o backend envia um WhatsApp de parabéns para clientes que têm data de nascimento cadastrada e fazem aniversário naquele dia. Não precisa de interação do admin. Requer `WHATSAPP_WEBHOOK_URL`; opcionalmente defina `BIRTHDAY_WHATSAPP_ENABLED=false` no backend para desativar.
 - **Exportação CSV:** na tela Relatórios, use "Exportar CSV" em Faturamento, Serviços mais vendidos e Clientes inativos.
 - **Backup:** script em `backend/scripts/backup.sh` (e `.ps1` no Windows) para backup do PostgreSQL; veja seção "Backup do banco" acima.
 
@@ -304,5 +305,5 @@ Se a sua API usar outro formato de corpo (ex.: campos `number` e `text`), edite 
 ## Roadmap (futuras versões)
 
 - Lembretes WhatsApp (24h antes do agendamento)
-- Campanhas e mensagem de aniversário
+- Campanhas em massa (mensagens promocionais)
 - Exportação PDF dos relatórios

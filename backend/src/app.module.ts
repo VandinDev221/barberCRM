@@ -1,5 +1,6 @@
 import { Module } from '@nestjs/common';
 import { ConfigModule } from '@nestjs/config';
+import { ScheduleModule } from '@nestjs/schedule';
 import { ThrottlerModule } from '@nestjs/throttler';
 import { AppController } from './app.controller';
 import { AuthModule } from './modules/auth/auth.module';
@@ -22,6 +23,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
       // Inclui process.env (variáveis do Railway, etc.) no ConfigService
       load: [() => ({ ...process.env })],
     }),
+    ScheduleModule.forRoot(),
     ThrottlerModule.forRoot([
       {
         ttl: 60000,
