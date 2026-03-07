@@ -29,7 +29,7 @@ export default function AgendarPage() {
   const maxDate = format(addDays(new Date(), 60), 'yyyy-MM-dd');
 
   useEffect(() => {
-    apiGet<Service[]>('/public/services')
+    apiGet<Service[]>('/public/services', { cache: 'no-store' })
       .then(setServices)
       .catch((err: unknown) => {
         const msg = err instanceof Error ? err.message : 'Não foi possível carregar os serviços.';
@@ -51,7 +51,7 @@ export default function AgendarPage() {
     }
     setTime('');
     setSlotsLoading(true);
-    apiGet<{ slots: Slot[] }>(`/public/slots?date=${date}`)
+    apiGet<{ slots: Slot[] }>(`/public/slots?date=${date}`, { cache: 'no-store' })
       .then((r) => setSlots(r.slots || []))
       .catch(() => setSlots([]))
       .finally(() => setSlotsLoading(false));
