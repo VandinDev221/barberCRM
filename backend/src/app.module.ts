@@ -29,7 +29,6 @@ import { PrismaModule } from './common/prisma/prisma.module';
       },
     ]),
     PrismaModule,
-    AppController,
     AuthModule,
     ClientsModule,
     AppointmentsModule,
@@ -42,5 +41,6 @@ import { PrismaModule } from './common/prisma/prisma.module';
     SettingsModule,
     PublicModule,
   ],
+  controllers: [AppController],
 })
 export class AppModule {}

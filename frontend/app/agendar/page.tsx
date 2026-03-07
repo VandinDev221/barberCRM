@@ -6,13 +6,7 @@ import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { format, addDays } from 'date-fns';
-
-const API = process.env.NEXT_PUBLIC_API_URL || '';
-const api = (path: string, options?: RequestInit) =>
-  fetch(API ? `${API}/api${path}` : `/api${path}`, {
-    ...options,
-    headers: { 'Content-Type': 'application/json', ...(options?.headers as object) },
-  }).then((r) => (r.ok ? r.json() : r.json().then((e) => Promise.reject(new Error(e.message || 'Erro')))));
+import { apiGet, apiPost } from '@/lib/api';
 
 type Service = { id: string; name: string; price: string; duration: number };
 type Slot = { time: string; endTime: string };
@@ -34,9 +28,17 @@ export default function AgendarPage() {
   const maxDate = format(addDays(new Date(), 60), 'yyyy-MM-dd');
 
   useEffect(() => {
-    api('/public/services')
+    apiGet<Service[]>('/public/services')
       .then(setServices)
-      .catch(() => setError('Não foi possível carregar os serviços.'));
+      .catch((err: unknown) => {
+        const msg = err instanceof Error ? err.message : 'Não foi possível carregar os serviços.';
+        const isConfig = msg.includes('NEXT_PUBLIC_API_URL') || msg.includes('não configurada') || msg.includes('fetch');
+        setError(
+          isConfig
+            ? 'API não configurada. Defina NEXT_PUBLIC_API_URL com a URL do backend (ex: na Vercel: Settings → Environment Variables). Em local: .env.local com NEXT_PUBLIC_API_URL=http://localhost:3001'
+            : msg
+        );
+      });
   }, []);
 
   useEffect(() => {
@@ -46,8 +48,8 @@ export default function AgendarPage() {
       return;
     }
     setTime('');
-    api(`/public/slots?date=${date}`)
-      .then((r: { slots: Slot[] }) => setSlots(r.slots || []))
+    apiGet<{ slots: Slot[] }>(`/public/slots?date=${date}`)
+      .then((r) => setSlots(r.slots || []))
       .catch(() => setSlots([]));
   }, [date]);
 
@@ -64,16 +66,13 @@ export default function AgendarPage() {
     }
     setLoading(true);
     try {
-      await api('/public/booking', {
-        method: 'POST',
-        body: JSON.stringify({
-          name: name.trim(),
-          phone: phone.trim().replace(/\D/g, ''),
-          email: email.trim() || undefined,
-          date,
-          time,
-          serviceIds: selectedIds,
-        }),
+      await apiPost('/public/booking', {
+        name: name.trim(),
+        phone: phone.trim().replace(/\D/g, ''),
+        email: email.trim() || undefined,
+        date,
+        time,
+        serviceIds: selectedIds,
       });
       setSuccess(true);
     } catch (err: unknown) {
