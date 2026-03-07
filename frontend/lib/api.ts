@@ -26,8 +26,9 @@ export async function api<T>(
         'API não configurada. Na Vercel, adicione NEXT_PUBLIC_API_URL com a URL do backend (ex: https://seu-backend.up.railway.app).'
       );
     }
+    const method = (options.method as string) || 'GET';
     throw new Error(
-      'Rota não encontrada (404). Se for campanha ou função nova, faça redeploy do backend no Railway.'
+      `Rota não encontrada (404): ${method} ${path}. Faça redeploy do backend no Railway.`
     );
   }
   if (res.status === 401) {
