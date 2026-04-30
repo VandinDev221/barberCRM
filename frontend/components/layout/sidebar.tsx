@@ -2,6 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -55,8 +56,14 @@ export function Sidebar() {
   const navContent = (
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:justify-start">
-        <Link href="/dashboard" className="font-semibold text-primary" onClick={() => setOpen(false)}>
-          Barber CRM
+        <Link href="/dashboard" className="flex items-center" onClick={() => setOpen(false)}>
+          <Image
+            src="/logo-barber-crm.png"
+            alt="Barber CRM"
+            width={170}
+            height={48}
+            className="h-9 w-auto"
+          />
         </Link>
         <Button
           variant="ghost"
@@ -109,8 +116,14 @@ export function Sidebar() {
         >
           <Menu className="h-6 w-6" />
         </Button>
-        <Link href="/dashboard" className="font-semibold text-primary">
-          Barber CRM
+        <Link href="/dashboard" className="flex items-center">
+          <Image
+            src="/logo-barber-crm.png"
+            alt="Barber CRM"
+            width={145}
+            height={42}
+            className="h-8 w-auto"
+          />
         </Link>
       </header>
 
