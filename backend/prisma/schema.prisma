@@ -3,8 +3,8 @@
 
 generator client {
   provider      = "prisma-client-js"
-  // native = seu OS local (Windows/Mac/Linux). linux-musl = deploy no Railway.
-  binaryTargets = ["native", "linux-musl-openssl-3.0.x", "linux-musl"]
+  // native = usa o binario compativel com o ambiente de build/deploy.
+  binaryTargets = ["native"]
 }
 
 datasource db {

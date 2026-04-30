@@ -38,7 +38,7 @@ export default function LoginPage() {
         (err instanceof TypeError && msg.includes('fetch'));
       setError(
         isApiConfig
-          ? 'API não configurada. Na Vercel: Settings → Environment Variables → adicione NEXT_PUBLIC_API_URL = URL do backend (ex: https://seu-app.up.railway.app). Depois faça Redeploy.'
+          ? 'API não configurada. Na Vercel: Settings → Environment Variables → adicione NEXT_PUBLIC_API_URL = URL do backend (ex: https://seubackend). Depois faça Redeploy.'
           : msg
       );
     } finally {

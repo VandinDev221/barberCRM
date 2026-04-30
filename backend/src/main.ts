@@ -1,17 +1,4 @@
 import 'dotenv/config';
-import * as path from 'path';
-import * as fs from 'fs';
-
-// Railway (linux-musl): forçar engine OpenSSL 3 se existir (evita "could not locate Query Engine")
-if (process.platform === 'linux' && !process.env.PRISMA_QUERY_ENGINE_LIBRARY) {
-  const enginePath = path.join(__dirname, '..', 'node_modules', '.prisma', 'client', 'libquery_engine-linux-musl-openssl-3.0.x.so.node');
-  try {
-    fs.accessSync(enginePath);
-    process.env.PRISMA_QUERY_ENGINE_LIBRARY = enginePath;
-  } catch {
-    // ignora se o arquivo não existir (ex.: local)
-  }
-}
 
 import { NestFactory } from '@nestjs/core';
 import { ValidationPipe } from '@nestjs/common';
@@ -22,7 +9,7 @@ import { AppModule } from './app.module';
 async function bootstrap() {
   if (!process.env.JWT_SECRET || !process.env.JWT_REFRESH_SECRET) {
     throw new Error(
-      'Defina JWT_SECRET e JWT_REFRESH_SECRET. Railway: serviço do backend → Variables. Local: arquivo .env (veja .env.example).',
+      'Defina JWT_SECRET e JWT_REFRESH_SECRET. Deploy: variaveis do servico backend. Local: arquivo .env (veja .env.example).',
     );
   }
   const app = await NestFactory.create(AppModule);
