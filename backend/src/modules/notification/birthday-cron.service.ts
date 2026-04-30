@@ -29,7 +29,6 @@ export class BirthdayCronService {
       where: {
         userId,
         birthDate: { not: null },
-        phone: { not: null },
       },
       select: { name: true, phone: true, birthDate: true },
     });

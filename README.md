@@ -108,53 +108,52 @@ Significa que a imagem foi criada **sem** rodar o build do NestJS. Certifique-se
 - **Docker**: usar o Dockerfile da pasta `backend` com **contexto** igual à pasta backend:
   - `docker build -f backend/Dockerfile backend/` (a partir da raiz do projeto)
   - Ou `docker-compose build backend` (o `docker-compose.yml` já usa `context: ./backend`).
-- **Railway / Render / etc.**: se usar Dockerfile, defina **Root Directory** = `backend` (sem barra: `backend`, não `/backend`) para o serviço da API. Se usar buildpack Node (sem Docker), configure **Build Command** = `npm run build` e **Start Command** = `npm run start:prod`.
+- **Render / Railway / etc.**: se usar Dockerfile, defina **Root Directory** = `backend` (sem barra: `backend`, não `/backend`) para o serviço da API. Se usar buildpack Node (sem Docker), configure **Build Command** = `npm run build` e **Start Command** = `npm run start:prod`.
 
 ### Erro "Cannot find module '/app/backend/dist/main'"
 
 Significa que o serviço está rodando a partir da **raiz do monorepo** e o `dist` do backend não está disponível no container. **Solução:** crie um serviço só para a API e defina **Root Directory** = **`backend`**. Assim o build e o start rodam dentro da pasta `backend`, o `dist` fica em `/app/dist` e o comando `npm start` (ou `npm run start:prod`) funciona.
 
-## Deploy do backend no Railway
+## Deploy do backend no Render
 
-Para o backend subir sem erro no Railway (Railpack), use **um serviço dedicado** com a pasta do backend como raiz:
+Para o backend subir sem erro no Render, use **um serviço dedicado** com a pasta do backend como raiz:
 
-1. No projeto Railway, crie um **novo serviço** (ou use o que já existe para a API).
-2. Conecte o mesmo repositório e, nas configurações do serviço:
+1. No [Render](https://render.com), crie um **Web Service** novo para a API.
+2. Conecte o repositório e, nas configurações do serviço:
    - **Root Directory**: defina como **`backend`** (obrigatório). Use sem barra: `backend`, não `/backend`.
-3. **Variáveis de ambiente** (obrigatórias): no serviço do backend, vá em **Settings → Variables** e adicione:
-   - `DATABASE_URL` — URL do PostgreSQL (ex.: do próprio Railway ou externo)
+   - **Build Command**: `npm install && npm run build`
+   - **Start Command**: `npm run start:prod`
+3. **Variáveis de ambiente** (obrigatórias): no serviço do backend, vá em **Environment** e adicione:
+   - `DATABASE_URL` — URL do PostgreSQL (ex.: Render Postgres ou externo)
    - `JWT_SECRET` — string segura para assinar o token (ex.: `openssl rand -base64 32`)
    - `JWT_REFRESH_SECRET` — outra string segura para o refresh token
    - `BARBER_TZ_OFFSET_HOURS` — fuso do barbeiro para o link público (Brasil = **3**). **Obrigatório** para os horários ocupados no link público baterem com a Agenda: sem isso, no servidor em UTC aparecem 12:00/12:30 ocupados em vez de 09:00/09:30. Depois de definir, faça **Redeploy** do backend.
    Se faltar `JWT_SECRET` ou `JWT_REFRESH_SECRET`, a API não sobe e exibe erro pedindo para configurar nas variáveis do deploy.
-4. Não altere Build/Start: o Railpack vai usar `npm install`, `npm run build` e `npm start` a partir da pasta `backend`. O script `start` do backend já está como `node dist/main` para produção.
-5. **Conferir se o deploy está atualizado:** abra `https://SEU-BACKEND.up.railway.app/api`. A resposta deve incluir **`"health": true`**. Se não tiver, o backend está com build antigo — use o passo abaixo.
+4. **Conferir se o deploy está atualizado:** abra `https://SEU-BACKEND.onrender.com/api`. A resposta deve incluir **`"health": true`**. Se não tiver, o backend está com build antigo — use o passo abaixo.
 6. **404 em /api ou campanha não funciona — corrigir em 2 passos:**
    - **Opção A (recomendada):** Em **Settings** do serviço backend, defina **Root Directory** = **`backend`**. Salve e faça **Redeploy**.
-   - **Opção B (se não puder usar Root Directory):** Em **Settings → Build**, defina **Dockerfile path** = **`Dockerfile.backend`** (o repositório tem esse arquivo na raiz; ele builda só o backend). Salve e faça **Redeploy**.
-   - Em **Variables** adicione **`NO_CACHE`** = **`1`** e faça **Redeploy** de novo (build limpo). Depois pode remover a variável.
+   - **Opção B (com Docker):** selecione deploy via Dockerfile e use **Dockerfile path** = **`Dockerfile.backend`** (arquivo na raiz que builda só o backend). Salve e faça **Redeploy**.
+   - Se necessário, faça um deploy manual sem cache pelo painel do Render (Clear build cache).
 
 Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquivo. O frontend (Vercel ou outro) deve apontar `NEXT_PUBLIC_API_URL` para a URL pública desse serviço.
 
-**Criar tabelas no banco (primeira vez):** se aparecer *"The table \`public.User\` does not exist"*, o schema ainda não foi aplicado no PostgreSQL do Railway. Rode **uma vez** na sua máquina (com a mesma `DATABASE_URL` do Railway):
+**Criar tabelas no banco (primeira vez):** se aparecer *"The table \`public.User\` does not exist"*, o schema ainda não foi aplicado no PostgreSQL do Render. Rode **uma vez** na sua máquina (com a mesma `DATABASE_URL` do Render):
 
 ```bash
 cd backend
-# Use a DATABASE_URL do Railway (copie em Variables do serviço Postgres)
+# Use a DATABASE_URL do Render (copie em Environment do serviço Postgres)
 set DATABASE_URL=postgresql://usuario:senha@host:porta/banco
 npx prisma db push
 npx prisma db seed
 ```
 
-Ou no Railway: no serviço do **backend**, abra **Settings** → **Variables** e copie o valor de `DATABASE_URL`; no seu PC, no terminal na pasta `backend`, defina essa variável e execute `npx prisma db push` e `npx prisma db seed` (seed cria o usuário admin e dados de exemplo).
+Ou no Render: no serviço do **backend**, abra **Environment** e copie o valor de `DATABASE_URL`; no seu PC, no terminal na pasta `backend`, defina essa variável e execute `npx prisma db push` e `npx prisma db seed` (seed cria o usuário admin e dados de exemplo).
 
-**Erro 500 no /api/dashboard ou na Agenda:** se após um deploy novo a API retornar 500, o banco pode estar sem a coluna mais recente (ex.: `from_public_link`). Rode de novo **`npx prisma db push`** apontando para a `DATABASE_URL` do Railway (no seu PC, na pasta `backend`). Isso aplica as alterações do schema sem apagar dados.
+**Erro 500 no /api/dashboard ou na Agenda:** se após um deploy novo a API retornar 500, o banco pode estar sem a coluna mais recente (ex.: `from_public_link`). Rode de novo **`npx prisma db push`** apontando para a `DATABASE_URL` do Render (no seu PC, na pasta `backend`). Isso aplica as alterações do schema sem apagar dados.
 
 **Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
-**Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** no Railway, em **Variables** do backend, adicione:
-- **`RAILPACK_DEPLOY_APT_PACKAGES`** = **`libssl3`**  
-**Se der "could not locate the Query Engine for runtime linux-musl":** o schema já inclui `linux-musl` e `linux-musl-openssl-3.0.x`. Se a imagem tiver só OpenSSL 3, defina também **`PRISMA_QUERY_ENGINE_LIBRARY`** = **`/app/node_modules/.prisma/client/libquery_engine-linux-musl-openssl-3.0.x.so.node`** para forçar o engine compatível com libssl3. Faça **Redeploy** depois.
+**Se der erro `libssl.so.1.1: No such file or directory` ou `Prisma engines do not seem to be compatible`:** no Render, prefira imagem/node runtime com OpenSSL 3 e faça novo deploy limpo. Se usar Docker, instale `libssl3` na imagem.
 
 ## Deploy no Vercel (só frontend)
 
@@ -164,7 +163,7 @@ O Vercel faz deploy apenas do **frontend** (Next.js). O backend (NestJS) precisa
 2. Em **Project Settings → General → Root Directory** clique em **Edit** e defina: **`frontend`** (sem barra: `frontend`, não `/frontend`).
 3. Confirme **Framework Preset: Next.js** e **Build Command: `npm run build`** (já vem do `frontend/package.json`).
 4. Em **Environment Variables** adicione (obrigatório para o login funcionar):
-   - `NEXT_PUBLIC_API_URL` = URL **pública** do seu backend (ex: `https://sua-api.railway.app`).  
+   - `NEXT_PUBLIC_API_URL` = URL **pública** do seu backend (ex: `https://sua-api.onrender.com`).  
    Se não configurar, ao clicar em Entrar aparecerá erro de conexão (o Vercel não acessa `localhost`).
 5. Faça o **Deploy**.
 
@@ -246,7 +245,7 @@ Para **contratar ou saber valores**: **contato@seudominio.com** (substitua pelo 
 
 ## Notificação WhatsApp com Vercel
 
-Para o aviso por WhatsApp ao confirmar agendamento do link público, você pode usar a **rota de webhook** que já existe no frontend (Vercel). O backend (Railway) chama essa URL; a Vercel encaminha para sua API de WhatsApp.
+Para o aviso por WhatsApp ao confirmar agendamento do link público, você pode usar a **rota de webhook** que já existe no frontend (Vercel). O backend (Render) chama essa URL; a Vercel encaminha para sua API de WhatsApp.
 
 ### 1. APIs não oficiais que você pode usar
 
@@ -281,19 +280,19 @@ Em **Vercel → seu projeto → Settings → Environment Variables** adicione:
 
 Faça **Redeploy** do frontend após salvar.
 
-**Subir Evolution API com Docker (no próprio projeto):** na pasta `evolution-api/` há um `docker-compose.yml` pronto para rodar localmente. Para **produção (Barber na Vercel enviar WhatsApp)**, use o **deploy no Railway**: passo a passo em **[evolution-api/README.md](evolution-api/README.md)** na seção **"Deploy no Railway"** (template one-click ou deploy a partir deste repo).
+**Subir Evolution API com Docker (no próprio projeto):** na pasta `evolution-api/` há um `docker-compose.yml` pronto para rodar localmente. Para **produção (Barber na Vercel enviar WhatsApp)**, use um deploy gerenciado (Render, Railway ou VPS). Veja o passo a passo do provider escolhido.
 
 **Passo a passo rápido (Evolution API):**
 1. Tenha a Evolution API rodando (Docker na pasta `evolution-api/`, VPS ou Railway) e uma instância criada, com número conectado via QR Code.
 2. Na **Vercel** (projeto frontend): adicione `WHATSAPP_API_URL`, `WHATSAPP_PROVIDER=evolution` e `WHATSAPP_API_KEY`; faça Redeploy.
-3. No **Railway** (backend): adicione `WHATSAPP_WEBHOOK_URL=https://barber-painel.vercel.app/api/send-whatsapp`; redeploy do backend.
+3. No **Render** (backend): adicione `WHATSAPP_WEBHOOK_URL=https://barber-painel.vercel.app/api/send-whatsapp`; redeploy do backend.
 4. Teste: agende pelo link público → na Agenda clique em **Confirmar e notificar WhatsApp** → o cliente deve receber a mensagem no WhatsApp.
 
 **Evolution API – resumo:** A Evolution (evoapicloud) usa o body `{ "number": "5511999999999", "text": "mensagem" }` e o header `apikey` para autenticação. O sistema já envia nesse formato quando `WHATSAPP_PROVIDER=evolution`. Você precisa ter a Evolution rodando (self-host em VPS ou usar um serviço que hospede), criar uma instância, conectar um número via QR Code e copiar a URL base + nome da instância + apikey para as variáveis acima.
 
-### 3. Variável no Railway (backend)
+### 3. Variável no Render (backend)
 
-No serviço do **backend** no Railway, em **Settings → Variables** adicione:
+No serviço do **backend** no Render, em **Environment** adicione:
 
 | Variável | Valor |
 |----------|--------|
