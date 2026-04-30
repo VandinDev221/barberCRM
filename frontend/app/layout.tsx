@@ -9,6 +9,11 @@ const inter = Inter({ subsets: ['latin'] });
 export const metadata: Metadata = {
   title: 'Barber CRM',
   description: 'CRM e Gestão para Barbeiro Autônomo',
+  icons: {
+    icon: '/logo-barber-crm.png',
+    shortcut: '/logo-barber-crm.png',
+    apple: '/logo-barber-crm.png',
+  },
 };
 
 export default function RootLayout({
