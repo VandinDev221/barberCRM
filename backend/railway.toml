@@ -1,0 +1,6 @@
+# Barber CRM Backend - Railway
+# Com Root Directory = "backend" no serviço, o build usa este Dockerfile.
+
+[build]
+builder = "DOCKERFILE"
+dockerfilePath = "Dockerfile"

@@ -1,0 +1,163 @@
+// Barber CRM - Schema Prisma
+// Single-tenant: um único usuário/barbeiro
+
+generator client {
+  provider      = "prisma-client-js"
+  // native = usa o binario compativel com o ambiente de build/deploy.
+  binaryTargets = ["native"]
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model User {
+  id            String    @id @default(cuid())
+  email         String    @unique
+  passwordHash  String    @map("password_hash")
+  name          String    @map("name")
+  phone         String?   @map("phone")
+  avatarUrl     String?   @map("avatar_url")
+  role          String    @default("barber") // barber, admin
+  isActive      Boolean   @default(true) @map("is_active")
+  refreshToken  String?   @map("refresh_token")
+  createdAt     DateTime  @default(now()) @map("created_at")
+  updatedAt     DateTime  @updatedAt @map("updated_at")
+
+  clients       Client[]
+  appointments  Appointment[]
+  payments      Payment[]
+  settings      Setting[]
+  services      Service[]
+  inventory     InventoryItem[]
+}
+
+model Client {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  name            String    @map("name")
+  phone           String    @map("phone") // WhatsApp
+  email           String?   @map("email")
+  birthDate       DateTime? @map("birth_date")
+  notes           String?   @map("notes")
+  photoUrl        String?   @map("photo_url")
+  isVip           Boolean   @default(false) @map("is_vip")
+  lastVisitAt     DateTime? @map("last_visit_at")
+  totalSpent      Decimal   @default(0) @map("total_spent") @db.Decimal(10, 2)
+  visitCount      Int       @default(0) @map("visit_count")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user            User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments    Appointment[]
+  payments        Payment[]
+  loyalty         LoyaltyAccount?
+}
+
+model Service {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  name        String   @map("name")
+  price       Decimal  @map("price") @db.Decimal(10, 2)
+  duration    Int      @map("duration") // minutos
+  category    String?  @map("category")
+  isActive    Boolean  @default(true) @map("is_active")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  user        User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  appointments AppointmentService[]
+}
+
+model Appointment {
+  id              String    @id @default(cuid())
+  userId          String    @map("user_id")
+  clientId        String    @map("client_id")
+  startAt         DateTime  @map("start_at")
+  endAt           DateTime  @map("end_at")
+  status          String    @map("status") // scheduled, confirmed, completed, cancelled
+  notes           String?   @map("notes")
+  reminderSent    Boolean   @default(false) @map("reminder_sent")
+  fromPublicLink  Boolean   @default(false) @map("from_public_link")
+  createdAt       DateTime  @default(now()) @map("created_at")
+  updatedAt       DateTime  @updatedAt @map("updated_at")
+
+  user        User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client      Client    @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  services    AppointmentService[]
+  payment     Payment?
+}
+
+model AppointmentService {
+  id             String      @id @default(cuid())
+  appointmentId  String      @map("appointment_id")
+  serviceId      String      @map("service_id")
+  price          Decimal     @map("price") @db.Decimal(10, 2)
+  createdAt      DateTime    @default(now()) @map("created_at")
+
+  appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  service        Service    @relation(fields: [serviceId], references: [id], onDelete: Cascade)
+
+  @@unique([appointmentId, serviceId])
+  @@map("appointment_services")
+}
+
+model Payment {
+  id             String   @id @default(cuid())
+  userId         String   @map("user_id")
+  clientId       String   @map("client_id")
+  appointmentId  String?  @unique @map("appointment_id")
+  amount         Decimal  @map("amount") @db.Decimal(10, 2)
+  method         String   @map("method") // pix, cash, card
+  paidAt         DateTime @map("paid_at")
+  createdAt      DateTime @default(now()) @map("created_at")
+
+  user           User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  client         Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+  appointment    Appointment? @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+}
+
+model InventoryItem {
+  id            String   @id @default(cuid())
+  userId        String   @map("user_id")
+  name          String   @map("name")
+  quantity      Int      @default(0) @map("quantity")
+  minQuantity   Int      @default(0) @map("min_quantity") // alerta
+  unit          String   @default("un") @map("unit")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  user          User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@map("inventory")
+}
+
+model LoyaltyAccount {
+  id            String   @id @default(cuid())
+  clientId      String   @unique @map("client_id")
+  points        Int      @default(0) @map("points")
+  visitsCount   Int      @default(0) @map("visits_count") // para meta ex: 10 cortes = desconto
+  lastEarnAt    DateTime? @map("last_earn_at")
+  createdAt     DateTime @default(now()) @map("created_at")
+  updatedAt     DateTime @updatedAt @map("updated_at")
+
+  client        Client   @relation(fields: [clientId], references: [id], onDelete: Cascade)
+
+  @@map("loyalty")
+}
+
+model Setting {
+  id        String   @id @default(cuid())
+  userId    String   @map("user_id")
+  key       String   @map("key")
+  value     String   @map("value") // JSON string para valores complexos
+  createdAt DateTime @default(now()) @map("created_at")
+  updatedAt DateTime @updatedAt @map("updated_at")
+
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, key])
+  @@map("settings")
+}
+
