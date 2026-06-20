@@ -36,10 +36,12 @@ export default function WhatsAppSettingsPage() {
   const loadStatus = useCallback(async () => {
     try {
       const data = await fetchWhatsAppStatus();
+      const connected = data.connected || data.state === 'open';
       setStatus((prev) => ({
         ...data,
-        qrCode: data.qrCode ?? prev?.qrCode ?? null,
-        pairingCode: data.pairingCode ?? prev?.pairingCode ?? null,
+        connected,
+        qrCode: connected ? null : (data.qrCode ?? prev?.qrCode ?? null),
+        pairingCode: connected ? null : (data.pairingCode ?? prev?.pairingCode ?? null),
       }));
     } catch {
       setStatus(null);
@@ -53,10 +55,10 @@ export default function WhatsAppSettingsPage() {
   }, [loadStatus]);
 
   useEffect(() => {
-    if (!status || status.connected || !status.instance) return;
+    if (!status || status.connected || status.state === 'open' || !status.instance) return;
     const interval = setInterval(loadStatus, 4000);
     return () => clearInterval(interval);
-  }, [status?.connected, status?.instance, loadStatus]);
+  }, [status?.connected, status?.state, status?.instance, loadStatus]);
 
   async function handleConnect() {
     if (connecting) return;
@@ -64,7 +66,13 @@ export default function WhatsAppSettingsPage() {
     setResult(null);
     try {
       const data = await connectWhatsApp();
-      setStatus(data);
+      const connected = data.connected || data.state === 'open';
+      setStatus({
+        ...data,
+        connected,
+        qrCode: connected ? null : data.qrCode,
+        pairingCode: connected ? null : data.pairingCode ?? null,
+      });
     } catch (err) {
       setResult({
         ok: false,
@@ -95,7 +103,9 @@ export default function WhatsAppSettingsPage() {
     }
   }
 
-  const stateLabel = status?.connected
+  const isConnected = Boolean(status?.connected || status?.state === 'open');
+
+  const stateLabel = isConnected
     ? 'Conectado'
     : status?.state === 'connecting'
       ? 'Aguardando leitura do QR Code'
@@ -152,7 +162,7 @@ export default function WhatsAppSettingsPage() {
           ) : (
             <>
               <div className="flex flex-wrap items-center gap-2">
-                {status.connected ? (
+                {isConnected ? (
                   <CheckCircle2 className="h-5 w-5 text-green-600 dark:text-green-400" />
                 ) : (
                   <QrCode className="h-5 w-5 text-muted-foreground" />
@@ -163,7 +173,7 @@ export default function WhatsAppSettingsPage() {
                 )}
               </div>
 
-              {!status.connected && (
+              {!isConnected && (
                 <div className="space-y-3">
                   <p className="text-sm text-muted-foreground">
                     Clique em conectar, abra o WhatsApp no celular →{' '}
@@ -221,7 +231,7 @@ export default function WhatsAppSettingsPage() {
                 </div>
               )}
 
-              {status.connected && (
+              {isConnected && (
                 <p className="text-sm text-green-700 dark:text-green-300">
                   Seu WhatsApp está pronto para enviar confirmações, campanhas e mensagens de
                   aniversário.
@@ -250,7 +260,7 @@ export default function WhatsAppSettingsPage() {
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
-                disabled={sending || !status?.connected}
+                disabled={sending || !isConnected}
               />
             </div>
             <div className="space-y-2">
@@ -261,10 +271,10 @@ export default function WhatsAppSettingsPage() {
                 value={message}
                 onChange={(e) => setMessage(e.target.value)}
                 required
-                disabled={sending || !status?.connected}
+                disabled={sending || !isConnected}
               />
             </div>
-            <Button type="submit" disabled={sending || !status?.connected}>
+            <Button type="submit" disabled={sending || !isConnected}>
               {sending ? (
                 <>
                   <Loader2 className="mr-2 h-4 w-4 animate-spin" />
