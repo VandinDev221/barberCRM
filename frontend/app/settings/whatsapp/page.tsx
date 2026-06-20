@@ -15,15 +15,12 @@ import {
   RefreshCw,
   QrCode,
 } from 'lucide-react';
-import { apiGet, apiPost } from '@/lib/api';
-
-type WhatsAppStatus = {
-  platformConfigured: boolean;
-  instance: string | null;
-  state: 'open' | 'connecting' | 'close' | 'unknown';
-  connected: boolean;
-  qrCode: string | null;
-};
+import {
+  connectWhatsApp,
+  fetchWhatsAppStatus,
+  testWhatsApp,
+  type WhatsAppStatus,
+} from '@/lib/whatsapp-client';
 
 export default function WhatsAppSettingsPage() {
   const [status, setStatus] = useState<WhatsAppStatus | null>(null);
@@ -38,7 +35,7 @@ export default function WhatsAppSettingsPage() {
 
   const loadStatus = useCallback(async () => {
     try {
-      const data = await apiGet<WhatsAppStatus>('/settings/whatsapp');
+      const data = await fetchWhatsAppStatus();
       setStatus(data);
     } catch {
       setStatus(null);
@@ -61,7 +58,7 @@ export default function WhatsAppSettingsPage() {
     setConnecting(true);
     setResult(null);
     try {
-      const data = await apiPost<WhatsAppStatus>('/settings/whatsapp/connect');
+      const data = await connectWhatsApp();
       setStatus(data);
     } catch (err) {
       setResult({
@@ -78,30 +75,28 @@ export default function WhatsAppSettingsPage() {
     setSending(true);
     setResult(null);
     try {
-      await apiPost('/settings/whatsapp/test', {
-        phone: phone.replace(/\D/g, ''),
-        message,
-      });
+      await testWhatsApp(phone.replace(/\D/g, ''), message);
       setResult({
         ok: true,
         message: 'Mensagem enviada! Verifique o WhatsApp do número informado.',
       });
     } catch (err) {
-      const msg = err instanceof Error ? err.message : 'Falha ao enviar';
-      setResult({ ok: false, message: msg });
+      setResult({
+        ok: false,
+        message: err instanceof Error ? err.message : 'Falha ao enviar',
+      });
     } finally {
       setSending(false);
     }
   }
 
-  const stateLabel =
-    status?.connected
-      ? 'Conectado'
-      : status?.state === 'connecting'
-        ? 'Aguardando leitura do QR Code'
-        : status?.instance
-          ? 'Desconectado'
-          : 'Não configurado';
+  const stateLabel = status?.connected
+    ? 'Conectado'
+    : status?.state === 'connecting'
+      ? 'Aguardando leitura do QR Code'
+      : status?.instance
+        ? 'Desconectado'
+        : 'Não configurado';
 
   return (
     <div className="p-4 sm:p-6">
@@ -115,7 +110,7 @@ export default function WhatsAppSettingsPage() {
       <h1 className="mb-2 text-xl font-bold sm:text-2xl">WhatsApp</h1>
       <p className="mb-6 text-sm text-muted-foreground">
         Conecte seu WhatsApp aqui. Depois disso, confirmações da agenda, campanhas e aniversários
-        saem automaticamente — sem precisar configurar nada manualmente no servidor.
+        saem automaticamente pelo seu número.
       </p>
 
       <Card className="mb-6">
@@ -129,12 +124,25 @@ export default function WhatsAppSettingsPage() {
           {loading ? (
             <p className="text-sm text-muted-foreground">Carregando…</p>
           ) : !status?.platformConfigured ? (
-            <div className="flex items-start gap-2 text-sm text-destructive">
-              <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
-              <p>
-                O serviço WhatsApp da plataforma ainda não está disponível. Avise o suporte do
-                Barber CRM.
-              </p>
+            <div className="space-y-2">
+              <div className="flex items-start gap-2 text-sm text-destructive">
+                <XCircle className="mt-0.5 h-5 w-5 shrink-0" />
+                <p>
+                  A Evolution API ainda não está configurada na plataforma. Quem administra o Barber
+                  CRM precisa adicionar na <strong>Vercel</strong> (ou no Render do backend):
+                </p>
+              </div>
+              <ul className="ml-7 list-disc text-xs text-muted-foreground">
+                <li>
+                  <code className="rounded bg-muted px-1">EVOLUTION_API_URL</code> ou{' '}
+                  <code className="rounded bg-muted px-1">WHATSAPP_API_URL</code>
+                </li>
+                <li>
+                  <code className="rounded bg-muted px-1">EVOLUTION_API_KEY</code> ou{' '}
+                  <code className="rounded bg-muted px-1">WHATSAPP_API_KEY</code>
+                </li>
+              </ul>
+              <p className="ml-7 text-xs text-muted-foreground">Depois faça Redeploy.</p>
             </div>
           ) : (
             <>
@@ -257,11 +265,6 @@ export default function WhatsAppSettingsPage() {
             >
               <p className="font-medium">{result.ok ? 'Sucesso' : 'Erro'}</p>
               <p className="mt-1">{result.message}</p>
-              {result.details && (
-                <pre className="mt-2 overflow-x-auto whitespace-pre-wrap break-all rounded bg-black/10 p-2 text-xs">
-                  {result.details}
-                </pre>
-              )}
             </div>
           )}
         </CardContent>

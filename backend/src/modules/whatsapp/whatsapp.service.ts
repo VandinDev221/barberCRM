@@ -52,12 +52,23 @@ export class WhatsAppService {
   }
 
   async getUserStatus(userId: string): Promise<WhatsAppUserStatus> {
-    const platformConfigured = this.isPlatformConfigured();
+    const platformConfigured = this.isPlatformConfigured() || this.canUseVercelProxy();
     if (!platformConfigured) {
       return {
         platformConfigured: false,
         instance: null,
         state: 'unknown',
+        connected: false,
+        qrCode: null,
+      };
+    }
+
+    if (!this.isPlatformConfigured()) {
+      const instance = await this.getInstanceName(userId);
+      return {
+        platformConfigured: true,
+        instance,
+        state: instance ? 'unknown' : 'close',
         connected: false,
         qrCode: null,
       };
@@ -92,7 +103,7 @@ export class WhatsAppService {
   async connect(userId: string): Promise<WhatsAppUserStatus> {
     if (!this.isPlatformConfigured()) {
       throw new ServiceUnavailableException(
-        'Serviço WhatsApp indisponível. O administrador da plataforma precisa configurar EVOLUTION_API_URL e EVOLUTION_API_KEY no servidor.',
+        'Use a tela de Configurações no app para conectar via QR Code (credenciais Evolution na Vercel).',
       );
     }
 
@@ -114,13 +125,16 @@ export class WhatsAppService {
     phone: string,
     message: string,
   ): Promise<{ ok: boolean; error?: string; details?: string }> {
-    if (!this.isPlatformConfigured()) {
-      return { ok: false, error: 'WhatsApp não configurado na plataforma' };
-    }
-
     const instance = await this.getInstanceName(userId);
     if (!instance) {
       return { ok: false, error: 'Conecte seu WhatsApp em Configurações antes de enviar mensagens.' };
+    }
+
+    if (!this.isPlatformConfigured()) {
+      if (this.canUseVercelProxy()) {
+        return this.sendViaVercelProxy(instance, phone, message);
+      }
+      return { ok: false, error: 'WhatsApp não configurado na plataforma' };
     }
 
     const state = await this.getConnectionState(instance);
@@ -138,7 +152,71 @@ export class WhatsAppService {
   }
 
   private getBaseUrl(): string {
-    return (process.env.EVOLUTION_API_URL || process.env.WHATSAPP_API_URL || '').trim().replace(/\/$/, '');
+    let url = (process.env.EVOLUTION_API_URL || process.env.WHATSAPP_API_URL || '')
+      .trim()
+      .replace(/\/$/, '');
+    url = url.replace(/\/message\/sendText\/[^/?#]+$/i, '');
+    return url;
+  }
+
+  private canUseVercelProxy(): boolean {
+    return Boolean(this.getVercelProxyUrl() && this.getProxySecret());
+  }
+
+  private getVercelProxyUrl(): string | null {
+    const explicit = process.env.WHATSAPP_VERCEL_PROXY_URL?.trim();
+    if (explicit) return explicit.replace(/\/$/, '');
+    const appUrl = process.env.APP_URL?.trim().replace(/\/$/, '');
+    if (appUrl) return `${appUrl}/api/whatsapp/send-for-user`;
+    return null;
+  }
+
+  private getProxySecret(): string {
+    return (
+      process.env.WHATSAPP_PROXY_SECRET ||
+      process.env.EVOLUTION_API_KEY ||
+      process.env.WHATSAPP_API_KEY ||
+      ''
+    ).trim();
+  }
+
+  private async sendViaVercelProxy(
+    instance: string,
+    phone: string,
+    message: string,
+  ): Promise<{ ok: boolean; error?: string; details?: string }> {
+    const url = this.getVercelProxyUrl();
+    const secret = this.getProxySecret();
+    if (!url || !secret) {
+      return { ok: false, error: 'Proxy WhatsApp não configurado' };
+    }
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          secret,
+          instance,
+          phone: this.normalizeBrazilPhone(phone),
+          message: message.trim(),
+        }),
+        signal: controller.signal,
+      });
+      if (res.ok) return { ok: true };
+      const data = await res.json().catch(() => ({}));
+      return {
+        ok: false,
+        error: (data as { error?: string }).error || 'Falha ao enviar via proxy',
+        details: (data as { details?: string }).details,
+      };
+    } catch {
+      return { ok: false, error: 'Erro de rede ao enviar WhatsApp' };
+    } finally {
+      clearTimeout(timer);
+    }
   }
 
   private getApiKey(): string {
