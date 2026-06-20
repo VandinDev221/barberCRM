@@ -36,7 +36,10 @@ export default function WhatsAppSettingsPage() {
   const loadStatus = useCallback(async () => {
     try {
       const data = await fetchWhatsAppStatus();
-      setStatus(data);
+      setStatus((prev) => ({
+        ...data,
+        qrCode: data.qrCode ?? prev?.qrCode ?? null,
+      }));
     } catch {
       setStatus(null);
     } finally {
@@ -55,6 +58,7 @@ export default function WhatsAppSettingsPage() {
   }, [status?.connected, status?.instance, loadStatus]);
 
   async function handleConnect() {
+    if (connecting) return;
     setConnecting(true);
     setResult(null);
     try {

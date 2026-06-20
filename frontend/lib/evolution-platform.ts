@@ -48,7 +48,24 @@ export function defaultInstanceName(userId: string): string {
   return `barber-${userId.replace(/[^a-zA-Z0-9]/g, '').slice(0, 16).toLowerCase()}`;
 }
 
-export async function createEvolutionInstance(instanceName: string): Promise<void> {
+export async function evolutionInstanceExists(instanceName: string): Promise<boolean> {
+  try {
+    const res = await evolutionFetch(
+      `/instance/connectionState/${encodeURIComponent(instanceName)}`,
+    );
+    if (res.status === 404) return false;
+    if (res.ok || res.status === 429) return true;
+    const text = await res.text();
+    return /not found|does not exist/i.test(text) ? false : true;
+  } catch {
+    return false;
+  }
+}
+
+/** Cria instância só se ainda não existir na Evolution (evita 429 por cliques repetidos). */
+export async function ensureEvolutionInstance(instanceName: string): Promise<void> {
+  if (await evolutionInstanceExists(instanceName)) return;
+
   const res = await evolutionFetch('/instance/create', {
     method: 'POST',
     body: JSON.stringify({
@@ -58,12 +75,23 @@ export async function createEvolutionInstance(instanceName: string): Promise<voi
     }),
   });
 
-  if (res.ok || res.status === 403 || res.status === 409) return;
+  if (res.ok || res.status === 403 || res.status === 409 || res.status === 429) return;
 
   const text = await res.text();
-  if (/already|exist/i.test(text)) return;
+  if (/already|exist|duplicate|too many|rate limit/i.test(text)) return;
 
-  throw new Error(`Não foi possível criar instância: ${text.slice(0, 200)}`);
+  if (await evolutionInstanceExists(instanceName)) return;
+
+  throw new Error(
+    text.includes('Too Many Requests')
+      ? 'Muitas tentativas seguidas. Aguarde 1 minuto e clique em "Atualizar QR Code".'
+      : `Não foi possível preparar instância: ${text.slice(0, 200)}`,
+  );
+}
+
+/** @deprecated use ensureEvolutionInstance */
+export async function createEvolutionInstance(instanceName: string): Promise<void> {
+  return ensureEvolutionInstance(instanceName);
 }
 
 export async function getEvolutionConnectionState(
@@ -99,14 +127,19 @@ function extractQrBase64(data: Record<string, unknown>): string | null {
 }
 
 export async function fetchEvolutionQrCode(instance: string): Promise<string | null> {
-  try {
-    const res = await evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`);
-    if (!res.ok) return null;
-    const data = await res.json();
-    return extractQrBase64(data);
-  } catch {
-    return null;
+  for (let attempt = 0; attempt < 2; attempt++) {
+    try {
+      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+      const res = await evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`);
+      if (res.status === 429) continue;
+      if (!res.ok) return null;
+      const data = await res.json();
+      return extractQrBase64(data);
+    } catch {
+      if (attempt === 1) return null;
+    }
   }
+  return null;
 }
 
 export function normalizeBrazilPhone(phone: string): string {
@@ -158,7 +191,10 @@ export type WhatsAppUserStatusDto = {
   qrCode: string | null;
 };
 
-export async function buildUserStatus(instance: string | null): Promise<WhatsAppUserStatusDto> {
+export async function buildUserStatus(
+  instance: string | null,
+  options?: { includeQr?: boolean },
+): Promise<WhatsAppUserStatusDto> {
   if (!isEvolutionPlatformConfigured()) {
     return {
       platformConfigured: false,
@@ -180,7 +216,8 @@ export async function buildUserStatus(instance: string | null): Promise<WhatsApp
   }
 
   const state = await getEvolutionConnectionState(instance);
-  const qrCode = state === 'open' ? null : await fetchEvolutionQrCode(instance);
+  const qrCode =
+    options?.includeQr && state !== 'open' ? await fetchEvolutionQrCode(instance) : null;
 
   return {
     platformConfigured: true,

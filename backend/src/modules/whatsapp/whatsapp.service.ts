@@ -43,12 +43,55 @@ export class WhatsAppService {
 
   async ensureInstance(userId: string): Promise<string> {
     const existing = await this.getInstanceName(userId);
-    if (existing) return existing;
+    if (existing) {
+      await this.ensureInstanceOnEvolution(existing);
+      return existing;
+    }
 
     const instanceName = this.defaultInstanceName(userId);
-    await this.createInstance(instanceName);
     await this.saveInstanceName(userId, instanceName);
+    await this.ensureInstanceOnEvolution(instanceName);
     return instanceName;
+  }
+
+  private async instanceExistsOnEvolution(instanceName: string): Promise<boolean> {
+    try {
+      const res = await this.evolutionFetch(
+        `/instance/connectionState/${encodeURIComponent(instanceName)}`,
+      );
+      if (res.status === 404) return false;
+      if (res.ok || res.status === 429) return true;
+      const text = await res.text();
+      return !/not found|does not exist/i.test(text);
+    } catch {
+      return false;
+    }
+  }
+
+  private async ensureInstanceOnEvolution(instanceName: string): Promise<void> {
+    if (await this.instanceExistsOnEvolution(instanceName)) return;
+
+    const res = await this.evolutionFetch('/instance/create', {
+      method: 'POST',
+      body: JSON.stringify({
+        instanceName,
+        qrcode: true,
+        integration: 'WHATSAPP-BAILEYS',
+      }),
+    });
+
+    if (res.ok || res.status === 403 || res.status === 409 || res.status === 429) return;
+
+    const text = await res.text();
+    if (/already|exist|duplicate|too many|rate limit/i.test(text)) return;
+
+    if (await this.instanceExistsOnEvolution(instanceName)) return;
+
+    throw new ServiceUnavailableException(
+      text.includes('Too Many Requests')
+        ? 'Muitas tentativas seguidas. Aguarde 1 minuto e tente novamente.'
+        : `Não foi possível preparar instância WhatsApp: ${text.slice(0, 200)}`,
+    );
   }
 
   async getUserStatus(userId: string): Promise<WhatsAppUserStatus> {
@@ -86,17 +129,13 @@ export class WhatsAppService {
     }
 
     const state = await this.getConnectionState(instance);
-    let qrCode: string | null = null;
-    if (state !== 'open') {
-      qrCode = await this.fetchQrCode(instance);
-    }
 
     return {
       platformConfigured: true,
       instance,
       state,
       connected: state === 'open',
-      qrCode,
+      qrCode: null,
     };
   }
 
@@ -245,23 +284,7 @@ export class WhatsAppService {
   }
 
   private async createInstance(instanceName: string): Promise<void> {
-    const res = await this.evolutionFetch('/instance/create', {
-      method: 'POST',
-      body: JSON.stringify({
-        instanceName,
-        qrcode: true,
-        integration: 'WHATSAPP-BAILEYS',
-      }),
-    });
-
-    if (res.ok || res.status === 403 || res.status === 409) return;
-
-    const text = await res.text();
-    if (/already|exist/i.test(text)) return;
-
-    throw new ServiceUnavailableException(
-      `Não foi possível criar instância WhatsApp: ${text.slice(0, 200)}`,
-    );
+    return this.ensureInstanceOnEvolution(instanceName);
   }
 
   async getConnectionState(instance: string): Promise<WhatsAppConnectionState> {
@@ -278,14 +301,19 @@ export class WhatsAppService {
   }
 
   private async fetchQrCode(instance: string): Promise<string | null> {
-    try {
-      const res = await this.evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`);
-      if (!res.ok) return null;
-      const data = await res.json();
-      return this.extractQrBase64(data);
-    } catch {
-      return null;
+    for (let attempt = 0; attempt < 2; attempt++) {
+      try {
+        if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
+        const res = await this.evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`);
+        if (res.status === 429) continue;
+        if (!res.ok) return null;
+        const data = await res.json();
+        return this.extractQrBase64(data);
+      } catch {
+        if (attempt === 1) return null;
+      }
     }
+    return null;
   }
 
   private extractQrBase64(data: Record<string, unknown>): string | null {

@@ -1,8 +1,8 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   buildUserStatus,
-  createEvolutionInstance,
   defaultInstanceName,
+  ensureEvolutionInstance,
   fetchEvolutionQrCode,
   getEvolutionConnectionState,
   isEvolutionPlatformConfigured,
@@ -38,13 +38,22 @@ export async function POST(request: NextRequest) {
     if (!instance) {
       const userId = decodeUserIdFromToken(token);
       instance = userId ? defaultInstanceName(userId) : `barber-${Date.now().toString(36)}`;
-      await createEvolutionInstance(instance);
       await saveInstance(token, instance);
     }
+
+    await ensureEvolutionInstance(instance);
 
     const state = await getEvolutionConnectionState(instance);
     const qrCode = state === 'open' ? null : await fetchEvolutionQrCode(instance);
     const status = await buildUserStatus(instance);
+      return NextResponse.json(
+        {
+          error:
+            'Evolution API ocupada (limite de requisições). Aguarde 1 minuto e clique em "Atualizar QR Code".',
+        },
+        { status: 429 },
+      );
+    }
 
     return NextResponse.json({
       ...status,
