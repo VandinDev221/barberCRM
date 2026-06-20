@@ -68,12 +68,9 @@ npm run dev
 
 App: http://localhost:3000
 
-**Login padrão (após seed):**  
-E-mail: `admin@barber.com`  
-Senha: `admin123`
+**Primeiro acesso:** crie sua conta em `/register`, faça login e conclua a assinatura em `/billing` (Stripe Checkout).
 
-**Dados de demonstração (seed completo):**  
-Ao rodar `npm run db:seed` (ou `npx ts-node prisma/seed.ts`) na pasta backend, são criados: 10 clientes, 15 atendimentos passados com pagamentos, 5 agendamentos (hoje e amanhã), fidelização e 5 itens de estoque. Assim o dashboard, agenda, financeiro e relatórios já exibem dados para o cliente.
+**Stripe (produção):** configure `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` e `APP_URL` no backend. Webhook: `POST /api/billing/webhook`.
 
 ## Produção com Docker
 

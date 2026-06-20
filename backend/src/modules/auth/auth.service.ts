@@ -32,8 +32,32 @@ export class AuthService {
       data: { refreshToken: tokens.refreshToken },
     });
     return {
-      user: { id: user.id, email: user.email, name: user.name },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        subscriptionStatus: user.subscriptionStatus,
+      },
+      subscriptionStatus: user.subscriptionStatus,
       ...tokens,
+    };
+  }
+
+  async me(userId: string) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        id: true,
+        email: true,
+        name: true,
+        subscriptionStatus: true,
+        currentPeriodEnd: true,
+      },
+    });
+    if (!user) throw new UnauthorizedException('Usuário não encontrado');
+    return {
+      ...user,
+      isActive: ['active', 'trialing'].includes(user.subscriptionStatus),
     };
   }
 
@@ -59,7 +83,13 @@ export class AuthService {
       data: { refreshToken: tokens.refreshToken },
     });
     return {
-      user: { id: user.id, email: user.email, name: user.name },
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        subscriptionStatus: user.subscriptionStatus,
+      },
+      subscriptionStatus: user.subscriptionStatus,
       ...tokens,
     };
   }

@@ -4,8 +4,8 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Cake, Megaphone } from 'lucide-react';
-import { apiGet, apiPatch } from '@/lib/api';
+import { MessageCircle, Cake, Megaphone, CreditCard } from 'lucide-react';
+import { apiGet, apiPatch, apiPost } from '@/lib/api';
 
 const DEFAULT_BIRTHDAY_MESSAGE = 'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!';
 
@@ -13,6 +13,17 @@ export default function SettingsPage() {
   const [birthdayMessage, setBirthdayMessage] = useState(DEFAULT_BIRTHDAY_MESSAGE);
   const [birthdaySaving, setBirthdaySaving] = useState(false);
   const [birthdaySaved, setBirthdaySaved] = useState(false);
+  const [portalLoading, setPortalLoading] = useState(false);
+
+  async function openBillingPortal() {
+    setPortalLoading(true);
+    try {
+      const { url } = await apiPost<{ url: string }>('/billing/portal');
+      window.location.href = url;
+    } finally {
+      setPortalLoading(false);
+    }
+  }
 
   useEffect(() => {
     apiGet<{ key: string; value: string } | null>('/settings?key=birthday_message')
@@ -50,6 +61,23 @@ export default function SettingsPage() {
             <li><strong className="text-foreground">Exportar relatórios:</strong> use o botão &quot;Exportar CSV&quot; na página Relatórios.</li>
             <li><strong className="text-foreground">Backup:</strong> use o script em <code className="bg-muted px-1 rounded">backend/scripts/backup.sh</code> (veja README).</li>
           </ul>
+        </CardContent>
+      </Card>
+
+      <Card className="mt-6">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <CreditCard className="h-5 w-5" />
+            Assinatura
+          </CardTitle>
+          <p className="text-sm text-muted-foreground">
+            Gerencie pagamento, fatura e cancelamento no portal seguro do Stripe.
+          </p>
+        </CardHeader>
+        <CardContent>
+          <Button onClick={openBillingPortal} disabled={portalLoading}>
+            {portalLoading ? 'Abrindo...' : 'Gerenciar assinatura'}
+          </Button>
         </CardContent>
       </Card>
 

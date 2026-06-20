@@ -22,6 +22,10 @@ model User {
   role          String    @default("barber") // barber, admin
   isActive      Boolean   @default(true) @map("is_active")
   refreshToken  String?   @map("refresh_token")
+  stripeCustomerId     String?   @map("stripe_customer_id")
+  stripeSubscriptionId String?   @map("stripe_subscription_id")
+  subscriptionStatus   String    @default("inactive") @map("subscription_status")
+  currentPeriodEnd     DateTime? @map("current_period_end")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 

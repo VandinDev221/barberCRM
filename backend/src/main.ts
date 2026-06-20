@@ -12,7 +12,7 @@ async function bootstrap() {
       'Defina JWT_SECRET e JWT_REFRESH_SECRET. Deploy: variaveis do servico backend. Local: arquivo .env (veja .env.example).',
     );
   }
-  const app = await NestFactory.create(AppModule);
+  const app = await NestFactory.create(AppModule, { rawBody: true });
   const config = app.get(ConfigService);
   const port = config.get<number>('PORT', 3001);
   const prefix = config.get<string>('API_PREFIX', 'api');

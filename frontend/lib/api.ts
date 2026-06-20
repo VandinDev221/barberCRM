@@ -66,6 +66,19 @@ export async function api<T>(
     }
     throw new Error('Não autorizado');
   }
+  if (res.status === 403) {
+    let code: string | undefined;
+    try {
+      const j = JSON.parse(await res.clone().text());
+      code = j.code;
+    } catch {}
+    if (code === 'SUBSCRIPTION_REQUIRED' && typeof window !== 'undefined') {
+      if (!window.location.pathname.startsWith('/billing')) {
+        window.location.href = '/billing';
+      }
+      throw new Error('Assinatura ativa necessária.');
+    }
+  }
   if (!res.ok) {
     const text = await res.text();
     let msg = text;
