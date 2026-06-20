@@ -109,37 +109,123 @@ export async function getEvolutionConnectionState(
   }
 }
 
-function extractQrBase64(data: Record<string, unknown>): string | null {
-  const candidates = [
-    data.base64,
-    (data.qrcode as Record<string, unknown> | undefined)?.base64,
-    (data.qrcode as Record<string, unknown> | undefined)?.code,
-    data.code,
-  ];
+function extractQrBase64(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null;
 
+  const findImage = (obj: unknown, depth = 0): string | null => {
+    if (depth > 6 || !obj || typeof obj !== 'object') return null;
+    const record = obj as Record<string, unknown>;
+
+    for (const [key, value] of Object.entries(record)) {
+      if (typeof value === 'string' && value.trim()) {
+        const trimmed = value.trim();
+        const keyLower = key.toLowerCase();
+        const looksLikeBase64 =
+          keyLower.includes('base64') ||
+          trimmed.startsWith('data:image') ||
+          (trimmed.length > 200 && /^[A-Za-z0-9+/=\r\n]+$/.test(trimmed.slice(0, 300)));
+
+        if (looksLikeBase64) {
+          if (trimmed.startsWith('data:image')) return trimmed;
+          return `data:image/png;base64,${trimmed.replace(/\s/g, '')}`;
+        }
+      }
+      if (value && typeof value === 'object') {
+        const nested = findImage(value, depth + 1);
+        if (nested) return nested;
+      }
+    }
+    return null;
+  };
+
+  return findImage(data);
+}
+
+function extractPairingCode(data: unknown): string | null {
+  if (!data || typeof data !== 'object') return null;
+  const record = data as Record<string, unknown>;
+  const candidates = [
+    record.pairingCode,
+    (record.qrcode as Record<string, unknown> | undefined)?.pairingCode,
+    record.code,
+  ];
   for (const value of candidates) {
-    if (typeof value !== 'string' || !value.trim()) continue;
-    const trimmed = value.trim();
-    if (trimmed.startsWith('data:image')) return trimmed;
-    return `data:image/png;base64,${trimmed}`;
+    if (typeof value === 'string' && /^\d{8}$/.test(value.trim())) return value.trim();
   }
   return null;
 }
 
-export async function fetchEvolutionQrCode(instance: string): Promise<string | null> {
+export type QrFetchResult = {
+  qrCode: string | null;
+  pairingCode: string | null;
+  error?: string;
+  details?: string;
+  httpStatus?: number;
+};
+
+export async function fetchEvolutionQrCode(instance: string): Promise<QrFetchResult> {
+  const paths = [
+    { method: 'GET' as const, path: `/instance/connect/${encodeURIComponent(instance)}` },
+    { method: 'POST' as const, path: `/instance/connect/${encodeURIComponent(instance)}`, body: {} },
+  ];
+
+  let lastDetails = '';
+  let lastStatus = 0;
+
   for (let attempt = 0; attempt < 2; attempt++) {
-    try {
-      if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
-      const res = await evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`);
-      if (res.status === 429) continue;
-      if (!res.ok) return null;
-      const data = await res.json();
-      return extractQrBase64(data);
-    } catch {
-      if (attempt === 1) return null;
+    if (attempt > 0) await new Promise((r) => setTimeout(r, 2500));
+
+    for (const req of paths) {
+      try {
+        const res = await evolutionFetch(req.path, {
+          method: req.method,
+          body: req.body !== undefined ? JSON.stringify(req.body) : undefined,
+        });
+        lastStatus = res.status;
+
+        if (res.status === 429) {
+          lastDetails = 'Too Many Requests';
+          continue;
+        }
+
+        const text = await res.text();
+        if (!res.ok) {
+          lastDetails = text.slice(0, 300);
+          continue;
+        }
+
+        let data: unknown = {};
+        try {
+          data = JSON.parse(text);
+        } catch {
+          lastDetails = text.slice(0, 300);
+          continue;
+        }
+
+        const qrCode = extractQrBase64(data);
+        const pairingCode = extractPairingCode(data);
+
+        if (qrCode || pairingCode) {
+          return { qrCode, pairingCode };
+        }
+
+        lastDetails = text.slice(0, 300);
+      } catch (err) {
+        lastDetails = err instanceof Error ? err.message : 'Erro de rede';
+      }
     }
   }
-  return null;
+
+  return {
+    qrCode: null,
+    pairingCode: null,
+    error:
+      lastStatus === 429
+        ? 'Evolution API ocupada. Aguarde 1 minuto e tente novamente.'
+        : 'QR Code não retornado pela Evolution API',
+    details: lastDetails,
+    httpStatus: lastStatus || undefined,
+  };
 }
 
 export function normalizeBrazilPhone(phone: string): string {
@@ -217,7 +303,9 @@ export async function buildUserStatus(
 
   const state = await getEvolutionConnectionState(instance);
   const qrCode =
-    options?.includeQr && state !== 'open' ? await fetchEvolutionQrCode(instance) : null;
+    options?.includeQr && state !== 'open'
+      ? (await fetchEvolutionQrCode(instance)).qrCode
+      : null;
 
   return {
     platformConfigured: true,

@@ -12,6 +12,7 @@ export type WhatsAppUserStatus = {
   state: WhatsAppConnectionState;
   connected: boolean;
   qrCode: string | null;
+  pairingCode?: string | null;
 };
 
 @Injectable()
@@ -148,14 +149,15 @@ export class WhatsAppService {
 
     const instance = await this.ensureInstance(userId);
     const state = await this.getConnectionState(instance);
-    const qrCode = state === 'open' ? null : await this.fetchQrCode(instance);
+    const qrResult = state === 'open' ? null : await this.fetchQrCode(instance);
 
     return {
       platformConfigured: true,
       instance,
       state,
       connected: state === 'open',
-      qrCode,
+      qrCode: qrResult?.qrCode ?? null,
+      pairingCode: qrResult?.pairingCode ?? null,
     };
   }
 
@@ -300,37 +302,67 @@ export class WhatsAppService {
     }
   }
 
-  private async fetchQrCode(instance: string): Promise<string | null> {
-    for (let attempt = 0; attempt < 2; attempt++) {
-      try {
-        if (attempt > 0) await new Promise((r) => setTimeout(r, 2000));
-        const res = await this.evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`);
-        if (res.status === 429) continue;
-        if (!res.ok) return null;
-        const data = await res.json();
-        return this.extractQrBase64(data);
-      } catch {
-        if (attempt === 1) return null;
+  private async fetchQrCode(
+    instance: string,
+  ): Promise<{ qrCode: string | null; pairingCode: string | null }> {
+    for (const method of ['GET', 'POST'] as const) {
+      for (let attempt = 0; attempt < 2; attempt++) {
+        try {
+          if (attempt > 0) await new Promise((r) => setTimeout(r, 2500));
+          const res = await this.evolutionFetch(`/instance/connect/${encodeURIComponent(instance)}`, {
+            method,
+            body: method === 'POST' ? JSON.stringify({}) : undefined,
+          });
+          if (res.status === 429) continue;
+          if (!res.ok) continue;
+          const data = (await res.json()) as Record<string, unknown>;
+          const qrCode = this.extractQrBase64(data);
+          const pairingCode = this.extractPairingCode(data);
+          if (qrCode || pairingCode) return { qrCode, pairingCode };
+        } catch {
+          if (attempt === 1) continue;
+        }
       }
+    }
+    return { qrCode: null, pairingCode: null };
+  }
+
+  private extractPairingCode(data: Record<string, unknown>): string | null {
+    const candidates = [
+      data.pairingCode,
+      (data.qrcode as Record<string, unknown> | undefined)?.pairingCode,
+    ];
+    for (const value of candidates) {
+      if (typeof value === 'string' && /^\d{8}$/.test(value.trim())) return value.trim();
     }
     return null;
   }
 
   private extractQrBase64(data: Record<string, unknown>): string | null {
-    const candidates = [
-      data.base64,
-      (data.qrcode as Record<string, unknown> | undefined)?.base64,
-      (data.qrcode as Record<string, unknown> | undefined)?.code,
-      data.code,
-    ];
-
-    for (const value of candidates) {
-      if (typeof value !== 'string' || !value.trim()) continue;
-      const trimmed = value.trim();
-      if (trimmed.startsWith('data:image')) return trimmed;
-      return `data:image/png;base64,${trimmed}`;
-    }
-    return null;
+    const findImage = (obj: unknown, depth = 0): string | null => {
+      if (depth > 6 || !obj || typeof obj !== 'object') return null;
+      const record = obj as Record<string, unknown>;
+      for (const [key, value] of Object.entries(record)) {
+        if (typeof value === 'string' && value.trim()) {
+          const trimmed = value.trim();
+          const keyLower = key.toLowerCase();
+          if (
+            keyLower.includes('base64') ||
+            trimmed.startsWith('data:image') ||
+            (trimmed.length > 200 && /^[A-Za-z0-9+/=\r\n]+$/.test(trimmed.slice(0, 300)))
+          ) {
+            if (trimmed.startsWith('data:image')) return trimmed;
+            return `data:image/png;base64,${trimmed.replace(/\s/g, '')}`;
+          }
+        }
+        if (value && typeof value === 'object') {
+          const nested = findImage(value, depth + 1);
+          if (nested) return nested;
+        }
+      }
+      return null;
+    };
+    return findImage(data);
   }
 
   private async sendText(

@@ -6,6 +6,7 @@ export type WhatsAppStatus = {
   state: 'open' | 'connecting' | 'close' | 'unknown';
   connected: boolean;
   qrCode: string | null;
+  pairingCode?: string | null;
 };
 
 function authHeaders(): HeadersInit {
@@ -25,12 +26,12 @@ async function vercelFetch<T>(path: string, init?: RequestInit): Promise<T> {
   const data = await res.json().catch(() => ({}));
   if (!res.ok) {
     const msg = (data as { error?: string }).error || res.statusText;
-    throw new Error(msg);
+    const details = (data as { details?: string }).details;
+    throw new Error(details ? `${msg}: ${details}` : msg);
   }
   return data as T;
 }
 
-/** Backend (Render) primeiro; fallback Vercel se credenciais Evolution estiverem só na Vercel. */
 export async function fetchWhatsAppStatus(): Promise<WhatsAppStatus & { source?: 'backend' | 'vercel' }> {
   try {
     const backend = await apiGet<WhatsAppStatus>('/settings/whatsapp');
@@ -44,17 +45,21 @@ export async function fetchWhatsAppStatus(): Promise<WhatsAppStatus & { source?:
   return { ...(await vercelFetch<WhatsAppStatus>('/api/whatsapp/status')), source: 'vercel' };
 }
 
+/** QR Code via Vercel (Evolution); backend só envia mensagens quando configurado no Render. */
 export async function connectWhatsApp(): Promise<WhatsAppStatus> {
   try {
-    const backend = await apiGet<WhatsAppStatus>('/settings/whatsapp');
-    if (backend.platformConfigured) {
-      return apiPost<WhatsAppStatus>('/settings/whatsapp/connect');
+    return await vercelFetch<WhatsAppStatus>('/api/whatsapp/connect', { method: 'POST' });
+  } catch (vercelErr) {
+    try {
+      const backend = await apiGet<WhatsAppStatus>('/settings/whatsapp');
+      if (backend.platformConfigured) {
+        return apiPost<WhatsAppStatus>('/settings/whatsapp/connect');
+      }
+    } catch {
+      // ignore
     }
-  } catch {
-    // fallback
+    throw vercelErr;
   }
-
-  return vercelFetch<WhatsAppStatus>('/api/whatsapp/connect', { method: 'POST' });
 }
 
 export async function testWhatsApp(phone: string, message: string): Promise<void> {

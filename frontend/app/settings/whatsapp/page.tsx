@@ -39,6 +39,7 @@ export default function WhatsAppSettingsPage() {
       setStatus((prev) => ({
         ...data,
         qrCode: data.qrCode ?? prev?.qrCode ?? null,
+        pairingCode: data.pairingCode ?? prev?.pairingCode ?? null,
       }));
     } catch {
       setStatus(null);
@@ -200,6 +201,22 @@ export default function WhatsAppSettingsPage() {
                         className="h-56 w-56 object-contain"
                       />
                     </div>
+                  )}
+                  {!status.qrCode && status.pairingCode && (
+                    <div className="rounded-lg border border-border bg-muted/40 p-4">
+                      <p className="text-sm font-medium">Código de pareamento</p>
+                      <p className="mt-2 font-mono text-3xl tracking-widest">{status.pairingCode}</p>
+                      <p className="mt-2 text-xs text-muted-foreground">
+                        No WhatsApp: Aparelhos conectados → Conectar com número de telefone → digite
+                        este código.
+                      </p>
+                    </div>
+                  )}
+                  {!status.qrCode && !status.pairingCode && status.instance && (
+                    <p className="text-sm text-muted-foreground">
+                      QR ainda não gerado. Clique em &quot;Atualizar QR Code&quot; e aguarde alguns
+                      segundos.
+                    </p>
                   )}
                 </div>
               )}

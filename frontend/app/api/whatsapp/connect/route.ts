@@ -44,22 +44,42 @@ export async function POST(request: NextRequest) {
     await ensureEvolutionInstance(instance);
 
     const state = await getEvolutionConnectionState(instance);
-    const qrCode = state === 'open' ? null : await fetchEvolutionQrCode(instance);
+    const qrResult = state === 'open' ? null : await fetchEvolutionQrCode(instance);
     const status = await buildUserStatus(instance);
+
+    if (state === 'open') {
+      return NextResponse.json({
+        ...status,
+        state: 'open',
+        connected: true,
+        qrCode: null,
+      });
+    }
+
+    const qrCode = qrResult?.qrCode ?? null;
+    const pairingCode = qrResult?.pairingCode ?? null;
+
+    if (!qrCode && !pairingCode) {
       return NextResponse.json(
         {
           error:
-            'Evolution API ocupada (limite de requisições). Aguarde 1 minuto e clique em "Atualizar QR Code".',
+            qrResult?.error ||
+            'Não foi possível obter o QR Code. Aguarde 1 minuto e clique em "Atualizar QR Code".',
+          details: qrResult?.details,
+          instance,
+          state,
         },
-        { status: 429 },
+        { status: qrResult?.httpStatus === 429 ? 429 : 502 },
       );
     }
 
     return NextResponse.json({
       ...status,
-      qrCode: qrCode || status.qrCode,
+      instance,
       state: state === 'unknown' ? status.state : state,
-      connected: state === 'open',
+      connected: false,
+      qrCode,
+      pairingCode,
     });
   } catch (err) {
     const msg = err instanceof Error ? err.message : 'Erro ao conectar';
