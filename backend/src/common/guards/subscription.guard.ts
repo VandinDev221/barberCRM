@@ -1,4 +1,4 @@
-import { CanActivate, ExecutionContext, ForbiddenException, Injectable } from '@nestjs/common';
+import { CanActivate, ExecutionContext, HttpException, HttpStatus, Injectable } from '@nestjs/common';
 import { Reflector } from '@nestjs/core';
 import { PrismaService } from '../prisma/prisma.service';
 import { SKIP_SUBSCRIPTION_KEY } from '../decorators/skip-subscription.decorator';
@@ -32,10 +32,12 @@ export class SubscriptionGuard implements CanActivate {
 
     if (user && ACTIVE_STATUSES.has(user.subscriptionStatus)) return true;
 
-    throw new ForbiddenException({
-      statusCode: 403,
-      message: 'Assinatura ativa necessária para acessar a plataforma.',
-      code: 'SUBSCRIPTION_REQUIRED',
-    });
+    throw new HttpException(
+      {
+        message: 'Assinatura ativa necessária para acessar a plataforma.',
+        code: 'SUBSCRIPTION_REQUIRED',
+      },
+      HttpStatus.FORBIDDEN,
+    );
   }
 }

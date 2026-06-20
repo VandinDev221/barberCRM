@@ -51,7 +51,6 @@ cd backend
 npm install
 npx prisma generate
 npx prisma db push
-npm run db:seed   # ou: npx ts-node prisma/seed.ts
 npm run start:dev
 ```
 
@@ -70,7 +69,23 @@ App: http://localhost:3000
 
 **Primeiro acesso:** crie sua conta em `/register`, faça login e conclua a assinatura em `/billing` (Stripe Checkout).
 
-**Stripe (produção):** configure `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID` e `APP_URL` no backend. Webhook: `POST /api/billing/webhook`.
+### Stripe (assinatura SaaS)
+
+1. No [Stripe Dashboard](https://dashboard.stripe.com), crie um **Product** com preço recorrente e copie o **Price ID** (`price_...`).
+2. Ative o **Customer portal** em Settings → Billing → Customer portal.
+3. Crie um **Webhook** apontando para `https://SEU-BACKEND.onrender.com/api/billing/webhook` com os eventos:
+   - `checkout.session.completed`
+   - `customer.subscription.created`
+   - `customer.subscription.updated`
+   - `customer.subscription.deleted`
+   - `invoice.payment_failed`
+4. No **Render** (backend), defina:
+   - `STRIPE_SECRET_KEY`
+   - `STRIPE_WEBHOOK_SECRET` (signing secret do webhook)
+   - `STRIPE_PRICE_ID`
+   - `APP_URL` (URL pública do frontend na Vercel)
+
+Fluxo: registro → login → `/billing` → Checkout → webhook ativa assinatura → `/dashboard`.
 
 ## Produção com Docker
 
@@ -88,13 +103,12 @@ docker-compose up -d
 - Backend: http://localhost:3001  
 - PostgreSQL: localhost:5432 (user: barber, db: barber_crm)
 
-### Aplicar schema e seed no banco (primeira vez)
+### Aplicar schema no banco (primeira vez)
 
 ```bash
-# Entrar no backend e rodar migrations/seed
+# Entrar no backend e aplicar o schema
 docker-compose exec backend sh
 npx prisma db push
-npx ts-node prisma/seed.ts
 exit
 ```
 
@@ -125,6 +139,7 @@ Para o backend subir sem erro no Render, use **um serviço dedicado** com a past
    - `JWT_SECRET` — string segura para assinar o token (ex.: `openssl rand -base64 32`)
    - `JWT_REFRESH_SECRET` — outra string segura para o refresh token
    - `BARBER_TZ_OFFSET_HOURS` — fuso do barbeiro para o link público (Brasil = **3**). **Obrigatório** para os horários ocupados no link público baterem com a Agenda: sem isso, no servidor em UTC aparecem 12:00/12:30 ocupados em vez de 09:00/09:30. Depois de definir, faça **Redeploy** do backend.
+   - `STRIPE_SECRET_KEY`, `STRIPE_WEBHOOK_SECRET`, `STRIPE_PRICE_ID`, `APP_URL` — assinatura SaaS (veja seção Stripe acima).
    Se faltar `JWT_SECRET` ou `JWT_REFRESH_SECRET`, a API não sobe e exibe erro pedindo para configurar nas variáveis do deploy.
 4. **Conferir se o deploy está atualizado:** abra `https://SEU-BACKEND.onrender.com/api`. A resposta deve incluir **`"health": true`**. Se não tiver, o backend está com build antigo — use o passo abaixo.
 6. **404 em /api ou campanha não funciona — corrigir em 2 passos:**
@@ -139,14 +154,14 @@ Assim o build gera `dist/main.js` dentro do serviço e o start encontra o arquiv
 ```bash
 cd backend
 # Use a DATABASE_URL do Render (copie em Environment do serviço Postgres)
-set DATABASE_URL=postgresql://usuario:senha@host:porta/banco
+# Windows PowerShell:
+$env:DATABASE_URL = "postgresql://usuario:senha@host:porta/banco"
 npx prisma db push
-npx prisma db seed
 ```
 
-Ou no Render: no serviço do **backend**, abra **Environment** e copie o valor de `DATABASE_URL`; no seu PC, no terminal na pasta `backend`, defina essa variável e execute `npx prisma db push` e `npx prisma db seed` (seed cria o usuário admin e dados de exemplo).
+Ou no Render: no serviço do **backend**, abra **Environment** e copie o valor de `DATABASE_URL`; no seu PC, no terminal na pasta **`backend`**, defina essa variável e execute `npx prisma db push`.
 
-**Erro 500 no /api/dashboard ou na Agenda:** se após um deploy novo a API retornar 500, o banco pode estar sem a coluna mais recente (ex.: `from_public_link`). Rode de novo **`npx prisma db push`** apontando para a `DATABASE_URL` do Render (no seu PC, na pasta `backend`). Isso aplica as alterações do schema sem apagar dados.
+**Erro 500 no /api/dashboard ou na Agenda:** se após um deploy novo a API retornar 500, o banco pode estar sem colunas recentes (ex.: campos Stripe ou `from_public_link`). Rode de novo **`npx prisma db push`** apontando para a `DATABASE_URL` do Render (sempre na pasta `backend`). Isso aplica as alterações do schema sem apagar dados.
 
 **Se aparecer aviso do Prisma sobre OpenSSL** (`Prisma failed to detect the libssl/openssl version`): pode ignorar se o Prisma Client for gerado e a API subir; em muitos ambientes o client funciona mesmo assim.
 
@@ -185,7 +200,7 @@ O arquivo é salvo em `backend/backups/barber-backup-AAAA-MM-DD-HHmm.sql`. Para 
 | `npm run build` | Build backend + frontend |
 | `npm run docker:up` | Sobe stack com Docker |
 | `npm run db:push` | Aplica schema Prisma (backend) |
-| `npm run db:seed` | Roda seed (backend) |
+| `npm run db:seed` | Roda seed (vazio em produção — sem dados demo) |
 | `npm run db:studio` | Abre Prisma Studio (backend) |
 
 ## Estrutura do projeto

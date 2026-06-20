@@ -15,6 +15,18 @@ function buildApiUrl(path: string): string {
   return API_URL ? `${API_URL}/api${path}` : `/api${path}`;
 }
 
+function extractApiErrorCode(body: unknown): string | undefined {
+  if (!body || typeof body !== 'object') return undefined;
+  const record = body as Record<string, unknown>;
+  if (typeof record.code === 'string') return record.code;
+  const nested = record.message;
+  if (nested && typeof nested === 'object') {
+    const nestedCode = (nested as Record<string, unknown>).code;
+    if (typeof nestedCode === 'string') return nestedCode;
+  }
+  return undefined;
+}
+
 export async function api<T>(
   path: string,
   options: RequestInit = {},
@@ -69,8 +81,7 @@ export async function api<T>(
   if (res.status === 403) {
     let code: string | undefined;
     try {
-      const j = JSON.parse(await res.clone().text());
-      code = j.code;
+      code = extractApiErrorCode(JSON.parse(await res.clone().text()));
     } catch {}
     if (code === 'SUBSCRIPTION_REQUIRED' && typeof window !== 'undefined') {
       if (!window.location.pathname.startsWith('/billing')) {

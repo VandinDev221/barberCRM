@@ -127,9 +127,13 @@ export class BillingService {
       case 'checkout.session.completed':
         await this.onCheckoutCompleted(event.data.object as Stripe.Checkout.Session);
         break;
+      case 'customer.subscription.created':
       case 'customer.subscription.updated':
       case 'customer.subscription.deleted':
         await this.onSubscriptionChanged(event.data.object as Stripe.Subscription);
+        break;
+      case 'invoice.payment_failed':
+        await this.onInvoicePaymentFailed(event.data.object as Stripe.Invoice);
         break;
       default:
         break;
@@ -145,6 +149,17 @@ export class BillingService {
     const stripe = this.requireStripe();
     const subscription = await stripe.subscriptions.retrieve(String(session.subscription));
     await this.syncSubscription(userId, subscription, session.customer as string | undefined);
+  }
+
+  private async onInvoicePaymentFailed(invoice: Stripe.Invoice) {
+    const subscriptionId = (
+      invoice as Stripe.Invoice & { subscription?: string | Stripe.Subscription | null }
+    ).subscription;
+    if (!subscriptionId) return;
+
+    const stripe = this.requireStripe();
+    const subscription = await stripe.subscriptions.retrieve(String(subscriptionId));
+    await this.onSubscriptionChanged(subscription);
   }
 
   private async onSubscriptionChanged(subscription: Stripe.Subscription) {
