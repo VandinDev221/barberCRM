@@ -6,7 +6,7 @@ import { NotificationService } from './notification.service';
 /**
  * Envia mensagem de aniversário por WhatsApp automaticamente, sem interação do admin.
  * Roda todo dia às 09:00 no fuso do barbeiro (por padrão 12:00 UTC = 09:00 Brasil).
- * Exige: WHATSAPP_WEBHOOK_URL configurado e BIRTHDAY_WHATSAPP_ENABLED=true (opcional, default true).
+ * Exige: barbeiro com WhatsApp conectado em Configurações e EVOLUTION_* no servidor.
  */
 @Injectable()
 export class BirthdayCronService {
@@ -39,7 +39,7 @@ export class BirthdayCronService {
       const b = new Date(c.birthDate);
       if (b.getUTCMonth() !== todayMonth || b.getUTCDate() !== todayDay) continue;
       const message = template.replace(/\{\{name\}\}/g, c.name);
-      await this.notification.sendWhatsApp(c.phone, message);
+      await this.notification.sendWhatsApp(userId, c.phone, message);
     }
   }
 

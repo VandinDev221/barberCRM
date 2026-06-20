@@ -1,10 +1,11 @@
 import { Module } from '@nestjs/common';
 import { NotificationModule } from '../notification/notification.module';
+import { WhatsAppModule } from '../whatsapp/whatsapp.module';
 import { SettingsController } from './settings.controller';
 import { SettingsService } from './settings.service';
 
 @Module({
-  imports: [NotificationModule],
+  imports: [NotificationModule, WhatsAppModule],
   controllers: [SettingsController],
   providers: [SettingsService],
   exports: [SettingsService],

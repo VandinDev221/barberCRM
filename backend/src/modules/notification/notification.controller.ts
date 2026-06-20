@@ -38,7 +38,7 @@ export class NotificationController {
     let sent = 0;
     let failed = 0;
     for (const c of clients) {
-      const ok = await this.notification.sendWhatsApp(c.phone, message.trim());
+      const ok = await this.notification.sendWhatsApp(userId, c.phone, message.trim());
       if (ok) sent++;
       else failed++;
     }

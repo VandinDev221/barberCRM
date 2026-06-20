@@ -21,7 +21,7 @@ import { PrismaModule } from './common/prisma/prisma.module';
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      // Inclui process.env (variáveis do Railway, etc.) no ConfigService
+      // Inclui process.env (variáveis do Render, etc.) no ConfigService
       load: [() => ({ ...process.env })],
     }),
     ScheduleModule.forRoot(),

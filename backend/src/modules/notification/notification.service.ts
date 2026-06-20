@@ -1,53 +1,20 @@
 import { Injectable } from '@nestjs/common';
-
-const FETCH_TIMEOUT_MS = 25_000;
+import { WhatsAppService } from '../whatsapp/whatsapp.service';
 
 /**
- * Envia notificação por WhatsApp via webhook configurável.
- * Configure WHATSAPP_WEBHOOK_URL (Render) apontando para /api/send-whatsapp na Vercel.
- * Payload: { "phone": "5511999999999", "message": "..." }
+ * Envia WhatsApp usando a instância conectada pelo barbeiro em Configurações.
+ * Plataforma: EVOLUTION_API_URL + EVOLUTION_API_KEY no servidor (Render).
  */
 @Injectable()
 export class NotificationService {
-  private normalizePhone(phone: string): string {
-    const digits = phone.replace(/\D/g, '');
-    return digits.length <= 11 ? `55${digits}` : digits;
-  }
+  constructor(private whatsapp: WhatsAppService) {}
 
-  async sendWhatsApp(phone: string, message: string): Promise<boolean> {
-    const url = process.env.WHATSAPP_WEBHOOK_URL;
-    if (!url || !url.startsWith('http')) return false;
-
-    let headers: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
-    const extraHeaders = process.env.WHATSAPP_WEBHOOK_HEADERS;
-    if (extraHeaders) {
-      try {
-        headers = { ...headers, ...JSON.parse(extraHeaders) };
-      } catch {
-        // ignore invalid JSON
-      }
-    }
-
-    const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), FETCH_TIMEOUT_MS);
-
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers,
-        body: JSON.stringify({
-          phone: this.normalizePhone(phone),
-          message,
-        }),
-        signal: controller.signal,
-      });
-      return res.ok;
-    } catch {
-      return false;
-    } finally {
-      clearTimeout(timer);
-    }
+  async sendWhatsApp(
+    userId: string,
+    phone: string,
+    message: string,
+  ): Promise<boolean> {
+    const result = await this.whatsapp.sendForUser(userId, phone, message);
+    return result.ok;
   }
 }

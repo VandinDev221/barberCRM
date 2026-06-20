@@ -3,7 +3,7 @@
 import { useState } from 'react';
 import Link from 'next/link';
 import { useQuery, useMutation } from '@tanstack/react-query';
-import { apiGet } from '@/lib/api';
+import { apiGet, apiPost } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
@@ -29,17 +29,11 @@ export default function CampanhasPage() {
   });
 
   const sendMutation = useMutation({
-    mutationFn: async (body: { phones: string[]; message: string }) => {
-      const res = await fetch('/api/campaign', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (!res.ok) {
-        const data = await res.json().catch(() => ({}));
-        throw new Error(data.error || res.statusText);
-      }
-      return res.json() as Promise<{ sent: number; failed: number; total: number; errors?: string[] }>;
+    mutationFn: async (body: { clientIds: string[]; message: string }) => {
+      return apiPost<{ sent: number; failed: number; total: number; errors?: string[] }>(
+        '/settings/campaign',
+        body,
+      );
     },
   });
 
@@ -64,9 +58,9 @@ export default function CampanhasPage() {
   function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (selectedIds.size === 0 || !message.trim()) return;
-    const phones = clients.filter((c) => selectedIds.has(c.id)).map((c) => c.phone);
+    const clientIds = Array.from(selectedIds);
     sendMutation.mutate(
-      { phones, message: message.trim() },
+      { clientIds, message: message.trim() },
       {
         onSuccess: () => {
           setMessage('');
@@ -91,7 +85,12 @@ export default function CampanhasPage() {
         Campanhas
       </h1>
       <p className="mb-6 text-sm text-muted-foreground">
-        Selecione os clientes que receberão a mensagem e escreva o texto. O envio é feito por WhatsApp (mesma integração das confirmações).
+        Selecione os clientes que receberão a mensagem e escreva o texto. Antes de enviar, conecte
+        seu WhatsApp em{' '}
+        <Link href="/settings/whatsapp" className="text-primary hover:underline">
+          Configurações → WhatsApp
+        </Link>
+        .
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">

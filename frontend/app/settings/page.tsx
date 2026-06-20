@@ -60,12 +60,13 @@ export default function SettingsPage() {
             WhatsApp
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Notificações ao confirmar agendamento pelo link público. Verifique se o envio está funcionando.
+            Conecte seu WhatsApp escaneando o QR Code. Confirmações da agenda, campanhas e
+            aniversários usam essa conexão automaticamente.
           </p>
         </CardHeader>
         <CardContent>
-          <Button asChild variant="outline">
-            <Link href="/settings/whatsapp-verificar">Verificar envio WhatsApp</Link>
+          <Button asChild>
+            <Link href="/settings/whatsapp">Conectar WhatsApp</Link>
           </Button>
         </CardContent>
       </Card>

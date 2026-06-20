@@ -131,7 +131,7 @@ export class AppointmentsService {
     if (fromPublic && updated.client.phone) {
       const dateStr = formatDateTimePtBr(new Date(apt.startAt));
       const message = `Olá ${updated.client.name}! Seu agendamento foi confirmado para ${dateStr}. Até lá!`;
-      await this.notification.sendWhatsApp(updated.client.phone, message);
+      await this.notification.sendWhatsApp(userId, updated.client.phone, message);
     }
     return updated;
   }
@@ -163,7 +163,7 @@ export class AppointmentsService {
     if (status === 'cancelled' && apt.client.phone) {
       const dateStr = formatDateTimePtBr(new Date(apt.startAt));
       const message = `Olá ${apt.client.name}! Seu agendamento de ${dateStr} foi cancelado. Qualquer dúvida, entre em contato.`;
-      await this.notification.sendWhatsApp(apt.client.phone, message);
+      await this.notification.sendWhatsApp(userId, apt.client.phone, message);
     }
     return this.update(userId, id, { status: status as any });
   }
