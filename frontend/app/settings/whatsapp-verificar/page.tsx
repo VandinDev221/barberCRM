@@ -12,8 +12,11 @@ type Status = {
   configured: boolean;
   provider: string | null;
   hasApiKey: boolean;
+  hasInstance?: boolean;
   hint: string;
 };
+
+const CLIENT_TIMEOUT_MS = 30_000;
 
 export default function WhatsAppVerificarPage() {
   const [status, setStatus] = useState<Status | null>(null);
@@ -41,31 +44,47 @@ export default function WhatsAppVerificarPage() {
       });
   }, []);
 
-  function handleSubmit(e: React.FormEvent) {
+  async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setResult(null);
     setSending(true);
-    fetch('/api/send-whatsapp', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ phone: phone.replace(/\D/g, ''), message }),
-    })
-      .then(async (res) => {
-        const data = await res.json().catch(() => ({}));
-        if (res.ok) {
-          setResult({ ok: true, message: 'Mensagem enviada com sucesso. Verifique o WhatsApp do número informado.' });
-        } else {
-          setResult({
-            ok: false,
-            message: data.error || 'Falha ao enviar',
-            details: data.details,
-          });
-        }
-      })
-      .catch(() => {
-        setResult({ ok: false, message: 'Erro de rede ou servidor.' });
-      })
-      .finally(() => setSending(false));
+
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), CLIENT_TIMEOUT_MS);
+
+    try {
+      const res = await fetch('/api/send-whatsapp', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phone: phone.replace(/\D/g, ''), message }),
+        signal: controller.signal,
+      });
+      const data = await res.json().catch(() => ({}));
+
+      if (res.ok) {
+        setResult({
+          ok: true,
+          message: 'Mensagem enviada com sucesso. Verifique o WhatsApp do número informado.',
+        });
+      } else {
+        setResult({
+          ok: false,
+          message: data.error || 'Falha ao enviar',
+          details: data.details,
+        });
+      }
+    } catch (err) {
+      const isTimeout = err instanceof Error && err.name === 'AbortError';
+      setResult({
+        ok: false,
+        message: isTimeout
+          ? 'Tempo esgotado (30s). A Evolution API no Render pode estar acordando — tente de novo em 1 minuto.'
+          : 'Erro de rede ou servidor.',
+      });
+    } finally {
+      clearTimeout(timer);
+      setSending(false);
+    }
   }
 
   return (
@@ -81,7 +100,6 @@ export default function WhatsAppVerificarPage() {
         Use esta tela para testar se as notificações WhatsApp estão configuradas corretamente. O mesmo envio é feito quando você clica em &quot;Confirmar e notificar WhatsApp&quot; na Agenda.
       </p>
 
-      {/* Status da configuração */}
       <Card className="mb-6">
         <CardHeader>
           <CardTitle className="flex items-center gap-2 text-base">
@@ -104,7 +122,11 @@ export default function WhatsAppVerificarPage() {
               </div>
               {!status.configured && (
                 <p className="mt-2 text-xs text-muted-foreground">
-                  Em Vercel → projeto frontend → Settings → Environment Variables, defina WHATSAPP_API_URL, WHATSAPP_PROVIDER (evolution) e WHATSAPP_API_KEY. Veja o README do projeto.
+                  Na Vercel → Environment Variables:{' '}
+                  <code className="rounded bg-muted px-1">WHATSAPP_API_URL</code> (URL base da Evolution no Render),{' '}
+                  <code className="rounded bg-muted px-1">WHATSAPP_INSTANCE</code> (nome da instância),{' '}
+                  <code className="rounded bg-muted px-1">WHATSAPP_PROVIDER=evolution</code>,{' '}
+                  <code className="rounded bg-muted px-1">WHATSAPP_API_KEY</code>. Depois faça Redeploy.
                 </p>
               )}
             </div>
@@ -114,12 +136,11 @@ export default function WhatsAppVerificarPage() {
         </CardContent>
       </Card>
 
-      {/* Envio de teste */}
       <Card>
         <CardHeader>
           <CardTitle className="text-base">Enviar mensagem de teste</CardTitle>
           <p className="text-sm text-muted-foreground">
-            Informe um número com DDD (ex.: 11999999999) que receberá a mensagem. Use seu próprio WhatsApp para testar.
+            Informe um número com DDD (ex.: 98985894988) que receberá a mensagem. Use seu próprio WhatsApp para testar.
           </p>
         </CardHeader>
         <CardContent>
@@ -129,7 +150,7 @@ export default function WhatsAppVerificarPage() {
               <Input
                 id="phone"
                 type="tel"
-                placeholder="5511999999999 ou 11999999999"
+                placeholder="98985894988 ou 5598985894988"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
                 required
@@ -181,8 +202,9 @@ export default function WhatsAppVerificarPage() {
       </Card>
 
       <p className="mt-6 text-xs text-muted-foreground">
-        O backend (Railway) precisa ter WHATSAPP_WEBHOOK_URL apontando para{' '}
-        <code className="rounded bg-muted px-1">https://barber-painel.vercel.app/api/send-whatsapp</code> para que a confirmação da Agenda dispare o envio.
+        Para confirmações da Agenda, o backend no <strong>Render</strong> precisa de{' '}
+        <code className="rounded bg-muted px-1">WHATSAPP_WEBHOOK_URL</code> apontando para a URL do seu frontend, ex.:{' '}
+        <code className="rounded bg-muted px-1">https://barber-painel.vercel.app/api/send-whatsapp</code>
       </p>
     </div>
   );

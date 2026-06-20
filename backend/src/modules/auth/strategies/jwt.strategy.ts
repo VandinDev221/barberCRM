@@ -18,7 +18,7 @@ export class JwtStrategy extends PassportStrategy(Strategy, 'jwt') {
     const secret = process.env.JWT_SECRET || config.get<string>('JWT_SECRET');
     if (!secret) {
       throw new Error(
-        'JWT_SECRET não está definido. Em produção (ex: Railway): Settings → Variables → adicione JWT_SECRET e JWT_REFRESH_SECRET. Local: .env (veja .env.example).',
+        'JWT_SECRET não está definido. Em produção (Render): Environment → adicione JWT_SECRET e JWT_REFRESH_SECRET. Local: .env (veja .env.example).',
       );
     }
     super({

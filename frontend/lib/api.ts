@@ -33,12 +33,12 @@ export async function api<T>(
     const isProduction = !window.location.hostname.includes('localhost');
     if (isProduction && !API_URL) {
       throw new Error(
-        'API não configurada. Na Vercel, adicione NEXT_PUBLIC_API_URL com a URL do backend (ex: https://seu-backend.up.railway.app).'
+        'API não configurada. Na Vercel, adicione NEXT_PUBLIC_API_URL com a URL do backend no Render (ex: https://seu-backend.onrender.com).'
       );
     }
     const method = (options.method as string) || 'GET';
     throw new Error(
-      `Rota não encontrada (404): ${method} ${path}. Faça redeploy do backend no Railway.`
+      `Rota não encontrada (404): ${method} ${path}. Faça redeploy do backend no Render.`
     );
   }
   if (res.status === 401) {

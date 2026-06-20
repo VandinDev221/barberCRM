@@ -103,7 +103,7 @@ export class AuthService {
     const refreshSecret = process.env.JWT_REFRESH_SECRET || this.config.get<string>('JWT_REFRESH_SECRET');
     if (!refreshSecret) {
       throw new Error(
-        'JWT_REFRESH_SECRET não está definido. Adicione no .env do backend ou em Railway → Variables.',
+        'JWT_REFRESH_SECRET não está definido. Adicione no .env do backend ou em Render → Environment.',
       );
     }
     const payload = { sub: userId, email };

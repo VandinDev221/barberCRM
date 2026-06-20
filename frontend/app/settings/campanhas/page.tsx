@@ -39,7 +39,7 @@ export default function CampanhasPage() {
         const data = await res.json().catch(() => ({}));
         throw new Error(data.error || res.statusText);
       }
-      return res.json() as Promise<{ sent: number; failed: number; total: number }>;
+      return res.json() as Promise<{ sent: number; failed: number; total: number; errors?: string[] }>;
     },
   });
 
@@ -177,9 +177,16 @@ export default function CampanhasPage() {
           </p>
         )}
         {result && (
-          <p className="rounded-md bg-green-500/15 p-3 text-sm text-green-800 dark:text-green-200">
-            Enviado: {result.sent} | Falha: {result.failed} | Total: {result.total}
-          </p>
+          <div className="space-y-2">
+            <p className="rounded-md bg-green-500/15 p-3 text-sm text-green-800 dark:text-green-200">
+              Enviado: {result.sent} | Falha: {result.failed} | Total: {result.total}
+            </p>
+            {result.errors && result.errors.length > 0 && (
+              <pre className="overflow-x-auto rounded-md bg-destructive/10 p-3 text-xs text-destructive">
+                {result.errors.join('\n')}
+              </pre>
+            )}
+          </div>
         )}
 
         <Button
