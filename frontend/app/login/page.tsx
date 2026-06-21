@@ -3,11 +3,11 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { BrandLogo } from '@/components/brand-logo';
 import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { apiPost } from '@/lib/api';
 import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
@@ -58,14 +58,7 @@ export default function LoginPage() {
     <main className="flex min-h-screen items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <Image
-            src="/logo-barber-crm.png"
-            alt="Barber CRM"
-            width={320}
-            height={96}
-            className="h-auto w-full rounded-md border border-border/40"
-            priority
-          />
+          <BrandLogo variant="auth" priority />
           <CardTitle>Entrar</CardTitle>
           <p className="text-sm text-muted-foreground">Barber CRM</p>
         </CardHeader>

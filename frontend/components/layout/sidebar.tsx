@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
+import { BrandLogo } from '@/components/brand-logo';
 import { usePathname } from 'next/navigation';
 import {
   LayoutDashboard,
@@ -57,13 +57,7 @@ export function Sidebar() {
     <div className="flex h-full flex-col">
       <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:justify-start">
         <Link href="/dashboard" className="flex items-center" onClick={() => setOpen(false)}>
-          <Image
-            src="/logo-barber-crm.png"
-            alt="Barber CRM"
-            width={170}
-            height={48}
-            className="h-9 w-auto"
-          />
+          <BrandLogo variant="header" />
         </Link>
         <Button
           variant="ghost"
@@ -117,13 +111,7 @@ export function Sidebar() {
           <Menu className="h-6 w-6" />
         </Button>
         <Link href="/dashboard" className="flex items-center">
-          <Image
-            src="/logo-barber-crm.png"
-            alt="Barber CRM"
-            width={145}
-            height={42}
-            className="h-8 w-auto"
-          />
+          <BrandLogo variant="compact" />
         </Link>
       </header>
 

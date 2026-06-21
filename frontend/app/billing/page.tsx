@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { BrandLogo } from '@/components/brand-logo';
 import {
   BarChart3,
   Calendar,
@@ -104,14 +104,7 @@ export default function BillingPage() {
     <main className="min-h-screen bg-gradient-to-b from-background via-background to-primary/5">
       <header className="border-b border-border/60 bg-background/80 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4 sm:px-6">
-          <Image
-            src="/logo-barber-crm.png"
-            alt="Barber CRM"
-            width={160}
-            height={48}
-            className="h-10 w-auto"
-            priority
-          />
+          <BrandLogo variant="header" priority />
           <button
             type="button"
             onClick={handleLogout}

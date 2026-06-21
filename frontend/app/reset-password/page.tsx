@@ -3,7 +3,7 @@
 import { Suspense, useState } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
 import Link from 'next/link';
-import Image from 'next/image';
+import { BrandLogo } from '@/components/brand-logo';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
@@ -110,14 +110,7 @@ export default function ResetPasswordPage() {
     <main className="flex min-h-screen items-center justify-center p-4 sm:p-6">
       <Card className="w-full max-w-md">
         <CardHeader>
-          <Image
-            src="/logo-barber-crm.png"
-            alt="Barber CRM"
-            width={320}
-            height={96}
-            className="h-auto w-full rounded-md border border-border/40"
-            priority
-          />
+          <BrandLogo variant="auth" priority />
           <CardTitle>Nova senha</CardTitle>
           <p className="text-sm text-muted-foreground">Escolha uma nova senha para sua conta.</p>
         </CardHeader>

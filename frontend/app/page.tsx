@@ -2,8 +2,8 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
-import Image from 'next/image';
 import { useRouter } from 'next/navigation';
+import { BrandLogo } from '@/components/brand-logo';
 import { Button } from '@/components/ui/button';
 import { apiGet } from '@/lib/api';
 import { fetchPublicPlan, type PlanInfo } from '@/lib/plan';
@@ -59,15 +59,8 @@ export default function HomePage() {
 
       <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur-sm">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:py-4">
-          <Link href="/" className="flex items-center gap-2">
-            <Image
-              src="/logo-barber-crm.png"
-              alt="Barber CRM"
-              width={140}
-              height={42}
-              className="h-9 w-auto sm:h-10"
-              priority
-            />
+          <Link href="/" className="flex items-center">
+            <BrandLogo variant="header" priority />
           </Link>
           <div className="flex gap-2">
             <Button variant="ghost" size="sm" className="sm:size-default" asChild>
