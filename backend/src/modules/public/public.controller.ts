@@ -18,6 +18,12 @@ export class PublicController {
     return this.billing.getPublicPlan();
   }
 
+  @Get('auth-config')
+  @ApiOperation({ summary: 'Configuração pública de autenticação (Google OAuth)' })
+  getAuthConfig() {
+    return this.publicService.getAuthConfig();
+  }
+
   @Get(':slug/profile')
   @ApiOperation({ summary: 'Perfil público do barbeiro' })
   getProfile(@Param('slug') slug: string) {

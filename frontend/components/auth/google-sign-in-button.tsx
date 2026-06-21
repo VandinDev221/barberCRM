@@ -2,11 +2,15 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
-import { apiPost } from '@/lib/api';
+import { apiPost, apiGet } from '@/lib/api';
 import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
 
 type GoogleCredentialResponse = {
   credential?: string;
+};
+
+type AuthConfig = {
+  googleClientId: string | null;
 };
 
 type Props = {
@@ -14,12 +18,30 @@ type Props = {
   onSuccess: (res: AuthResponse) => void;
   onError: (message: string) => void;
   disabled?: boolean;
+  showDivider?: boolean;
 };
 
-export function GoogleSignInButton({ acceptTerms, onSuccess, onError, disabled }: Props) {
+export function GoogleSignInButton({
+  acceptTerms,
+  onSuccess,
+  onError,
+  disabled,
+  showDivider = true,
+}: Props) {
   const buttonRef = useRef<HTMLDivElement>(null);
-  const clientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const envClientId = process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID;
+  const [clientId, setClientId] = useState<string | null>(envClientId || null);
+  const [configLoading, setConfigLoading] = useState(!envClientId);
   const [scriptReady, setScriptReady] = useState(false);
+
+  useEffect(() => {
+    if (envClientId) return;
+
+    apiGet<AuthConfig>('/public/auth-config')
+      .then((data) => setClientId(data.googleClientId))
+      .catch(() => setClientId(null))
+      .finally(() => setConfigLoading(false));
+  }, [envClientId]);
 
   const handleCredential = useCallback(
     async (response: GoogleCredentialResponse) => {
@@ -64,7 +86,7 @@ export function GoogleSignInButton({ acceptTerms, onSuccess, onError, disabled }
     });
   }, [scriptReady, clientId, handleCredential, disabled]);
 
-  if (!clientId) return null;
+  if (configLoading || !clientId) return null;
 
   return (
     <>
@@ -77,6 +99,16 @@ export function GoogleSignInButton({ acceptTerms, onSuccess, onError, disabled }
         ref={buttonRef}
         className={`flex w-full justify-center ${disabled ? 'pointer-events-none opacity-50' : ''}`}
       />
+      {showDivider && (
+        <div className="relative">
+          <div className="absolute inset-0 flex items-center">
+            <span className="w-full border-t border-border" />
+          </div>
+          <div className="relative flex justify-center text-xs uppercase">
+            <span className="bg-card px-2 text-muted-foreground">ou e-mail</span>
+          </div>
+        </div>
+      )}
     </>
   );
 }

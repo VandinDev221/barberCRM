@@ -19,6 +19,11 @@ function getBarberTzOffsetHours(): number {
 export class PublicService {
   constructor(private prisma: PrismaService) {}
 
+  getAuthConfig() {
+    const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || null;
+    return { googleClientId };
+  }
+
   private async resolveUserId(slug: string): Promise<string> {
     const user = await this.prisma.user.findFirst({
       where: { slug, isActive: true },
