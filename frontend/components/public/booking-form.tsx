@@ -189,8 +189,8 @@ export function PublicBookingForm({ slug, barberName }: Props) {
                           !s.available
                             ? 'cursor-not-allowed border-red-300/80 bg-red-50 text-red-600 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400'
                             : time === s.time
-                              ? 'border-primary bg-primary text-primary-foreground'
-                              : 'border-border hover:bg-muted'
+                              ? 'border-green-700 bg-green-600 text-white dark:border-green-500 dark:bg-green-600'
+                              : 'border-green-400/80 bg-green-50 text-green-700 hover:bg-green-100 dark:border-green-700 dark:bg-green-950/40 dark:text-green-400 dark:hover:bg-green-950/60'
                         }`}
                       >
                         {s.time}

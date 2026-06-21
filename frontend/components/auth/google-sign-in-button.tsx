@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Script from 'next/script';
 import { apiPost, apiGet } from '@/lib/api';
 import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
@@ -21,6 +21,9 @@ type Props = {
   showDivider?: boolean;
 };
 
+/** Evita chamar google.accounts.id.initialize() mais de uma vez (React Strict Mode / re-renders). */
+let gsiInitializedClientId: string | null = null;
+
 export function GoogleSignInButton({
   acceptTerms,
   onSuccess,
@@ -33,6 +36,33 @@ export function GoogleSignInButton({
   const [clientId, setClientId] = useState<string | null>(envClientId || null);
   const [configLoading, setConfigLoading] = useState(!envClientId);
   const [scriptReady, setScriptReady] = useState(false);
+
+  const onSuccessRef = useRef(onSuccess);
+  const onErrorRef = useRef(onError);
+  const acceptTermsRef = useRef(acceptTerms);
+
+  onSuccessRef.current = onSuccess;
+  onErrorRef.current = onError;
+  acceptTermsRef.current = acceptTerms;
+
+  const credentialHandlerRef = useRef<(response: GoogleCredentialResponse) => void>(() => {});
+
+  credentialHandlerRef.current = async (response: GoogleCredentialResponse) => {
+    if (!response.credential) {
+      onErrorRef.current('Não foi possível obter credencial do Google.');
+      return;
+    }
+    try {
+      const res = await apiPost<AuthResponse>('/auth/google', {
+        idToken: response.credential,
+        ...(acceptTermsRef.current ? { acceptTerms: true } : {}),
+      });
+      persistAuthSession(res);
+      onSuccessRef.current(res);
+    } catch (err: unknown) {
+      onErrorRef.current(err instanceof Error ? err.message : 'Erro ao entrar com Google');
+    }
+  };
 
   useEffect(() => {
     if (window.google?.accounts?.id) {
@@ -49,37 +79,21 @@ export function GoogleSignInButton({
       .finally(() => setConfigLoading(false));
   }, [envClientId]);
 
-  const handleCredential = useCallback(
-    async (response: GoogleCredentialResponse) => {
-      if (!response.credential) {
-        onError('Não foi possível obter credencial do Google.');
-        return;
-      }
-      try {
-        const res = await apiPost<AuthResponse>('/auth/google', {
-          idToken: response.credential,
-          ...(acceptTerms ? { acceptTerms: true } : {}),
-        });
-        persistAuthSession(res);
-        onSuccess(res);
-      } catch (err: unknown) {
-        onError(err instanceof Error ? err.message : 'Erro ao entrar com Google');
-      }
-    },
-    [acceptTerms, onError, onSuccess],
-  );
-
   useEffect(() => {
     if (!scriptReady || !clientId || !buttonRef.current) return;
 
     const google = window.google;
     if (!google?.accounts?.id) return;
 
+    if (gsiInitializedClientId !== clientId) {
+      google.accounts.id.initialize({
+        client_id: clientId,
+        callback: (response) => credentialHandlerRef.current(response),
+      });
+      gsiInitializedClientId = clientId;
+    }
+
     buttonRef.current.innerHTML = '';
-    google.accounts.id.initialize({
-      client_id: clientId,
-      callback: handleCredential,
-    });
     google.accounts.id.renderButton(buttonRef.current, {
       type: 'standard',
       theme: 'outline',
@@ -90,7 +104,7 @@ export function GoogleSignInButton({
       width: 320,
       locale: 'pt-BR',
     });
-  }, [scriptReady, clientId, handleCredential]);
+  }, [scriptReady, clientId]);
 
   if (configLoading || !clientId) return null;
 
