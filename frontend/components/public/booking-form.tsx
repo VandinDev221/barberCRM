@@ -187,10 +187,10 @@ export function PublicBookingForm({ slug, barberName }: Props) {
                         onClick={() => s.available && setTime(s.time)}
                         className={`rounded-md px-3 py-2 text-sm font-medium border ${
                           !s.available
-                            ? 'opacity-50 cursor-not-allowed'
+                            ? 'cursor-not-allowed border-red-300/80 bg-red-50 text-red-600 dark:border-red-800 dark:bg-red-950/40 dark:text-red-400'
                             : time === s.time
-                              ? 'bg-primary text-primary-foreground'
-                              : 'hover:bg-muted'
+                              ? 'border-primary bg-primary text-primary-foreground'
+                              : 'border-border hover:bg-muted'
                         }`}
                       >
                         {s.time}

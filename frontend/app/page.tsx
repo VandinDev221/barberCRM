@@ -2,30 +2,24 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import Image from 'next/image';
 import { useRouter } from 'next/navigation';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiGet } from '@/lib/api';
 import { fetchPublicPlan, type PlanInfo } from '@/lib/plan';
 import { postAuthRedirect } from '@/lib/subscription';
 import { PRIVACY_URL, TERMS_URL } from '@/lib/legal';
+import { formatSupportPhoneDisplay, supportWhatsAppUrl } from '@/lib/contact';
 import {
-  Calendar,
-  MessageCircle,
-  Users,
-  BarChart3,
-  Gift,
-  Scissors,
-} from 'lucide-react';
-
-const FEATURES = [
-  { icon: Calendar, title: 'Agenda inteligente', desc: 'Organize horários e confirme pelo WhatsApp.' },
-  { icon: Users, title: 'CRM de clientes', desc: 'Histórico, VIP, fidelização e campanhas.' },
-  { icon: MessageCircle, title: 'WhatsApp integrado', desc: 'QR Code self-service por barbeiro.' },
-  { icon: BarChart3, title: 'Financeiro e relatórios', desc: 'Receita, estoque e exportação CSV.' },
-  { icon: Gift, title: 'Aniversários automáticos', desc: 'Mensagens no dia certo, sem esforço.' },
-  { icon: Scissors, title: 'Link de agendamento', desc: 'Seus clientes agendam online 24h.' },
-];
+  LandingFaq,
+  LandingFinalCta,
+  LandingHero,
+  LandingHowItWorks,
+  LandingIncluded,
+  LandingPreviewSection,
+  LandingPricing,
+} from '@/components/landing/landing-sections';
+import { MessageCircle } from 'lucide-react';
 
 export default function HomePage() {
   const router = useRouter();
@@ -39,7 +33,6 @@ export default function HomePage() {
     apiGet<{ subscriptionStatus: string; onboardingCompleted: boolean }>('/auth/me')
       .then((me) => {
         const target = postAuthRedirect(me);
-        // Sem assinatura: permite ver a landing (ex.: link "Voltar ao site" em /billing)
         if (target === '/billing') {
           setPendingBilling(true);
           return;
@@ -63,76 +56,51 @@ export default function HomePage() {
           </Link>
         </div>
       )}
-      <header className="border-b border-border/60">
-        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
-          <span className="text-lg font-bold">Barber CRM</span>
+
+      <header className="sticky top-0 z-10 border-b border-border/60 bg-background/95 backdrop-blur-sm">
+        <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-3 sm:py-4">
+          <Link href="/" className="flex items-center gap-2">
+            <Image
+              src="/logo-barber-crm.png"
+              alt="Barber CRM"
+              width={140}
+              height={42}
+              className="h-9 w-auto sm:h-10"
+              priority
+            />
+          </Link>
           <div className="flex gap-2">
-            <Button variant="ghost" asChild>
+            <Button variant="ghost" size="sm" className="sm:size-default" asChild>
               <Link href="/login">Entrar</Link>
             </Button>
-            <Button asChild>
-              <Link href="/register">Começar agora</Link>
+            <Button size="sm" className="sm:size-default" asChild>
+              <Link href="/register">Começar</Link>
             </Button>
           </div>
         </div>
       </header>
 
-      <section className="mx-auto max-w-5xl px-4 py-16 text-center">
-        <h1 className="text-4xl font-bold tracking-tight sm:text-5xl">
-          Gestão completa para barbeiro autônomo
-        </h1>
-        <p className="mx-auto mt-4 max-w-2xl text-lg text-muted-foreground">
-          Agenda, clientes, WhatsApp, financeiro e agendamento online — tudo em um só lugar. Pare de
-          perder clientes no caderno.
-        </p>
-        <div className="mt-8 flex flex-wrap justify-center gap-4">
-          <Button size="lg" asChild>
-            <Link href="/register">Criar conta grátis</Link>
-          </Button>
-          <Button size="lg" variant="outline" asChild>
-            <Link href="/login">Já tenho conta</Link>
-          </Button>
-        </div>
-        {plan && (
-          <p className="mt-6 text-sm text-muted-foreground">
-            {plan.trialDays > 0 && (
-              <span className="font-medium text-foreground">{plan.trialDays} dias grátis · </span>
-            )}
-            depois {plan.priceLabel}
-          </p>
-        )}
-      </section>
-
-      <section className="mx-auto grid max-w-5xl gap-4 px-4 pb-12 sm:grid-cols-2 lg:grid-cols-3">
-        {FEATURES.map(({ icon: Icon, title, desc }) => (
-          <Card key={title}>
-            <CardHeader>
-              <CardTitle className="flex items-center gap-2 text-base">
-                <Icon className="h-5 w-5 text-primary" />
-                {title}
-              </CardTitle>
-            </CardHeader>
-            <CardContent>
-              <p className="text-sm text-muted-foreground">{desc}</p>
-            </CardContent>
-          </Card>
-        ))}
-      </section>
-
-      <section className="border-t border-border/60 bg-muted/30 py-16">
-        <div className="mx-auto max-w-3xl px-4 text-center">
-          <h2 className="text-2xl font-bold">Pronto para profissionalizar sua barbearia?</h2>
-          <p className="mt-2 text-muted-foreground">
-            {plan?.productName || 'Barber CRM Pro'} — {plan?.priceLabel || 'plano mensal'}
-            {plan && plan.trialDays > 0 ? ` · ${plan.trialDays} dias de teste` : ''}
-          </p>
-          <Button className="mt-6" size="lg" asChild>
-            <Link href="/register">Assinar e começar</Link>
-          </Button>
-        </div>
-      </section>
+      <LandingHero plan={plan} />
+      <LandingPreviewSection />
+      <LandingHowItWorks />
+      <LandingIncluded />
+      <LandingPricing plan={plan} />
+      <LandingFaq />
+      <LandingFinalCta plan={plan} />
 
       <footer className="border-t border-border/60 py-8 text-center text-sm text-muted-foreground">
+        <p className="mb-4">
+          Dúvidas?{' '}
+          <a
+            href={supportWhatsAppUrl('Olá! Tenho dúvidas sobre o Barber CRM.')}
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-1.5 font-medium text-primary underline-offset-4 hover:underline"
+          >
+            <MessageCircle className="h-4 w-4" />
+            Chama no WhatsApp: {formatSupportPhoneDisplay()}
+          </a>
+        </p>
         <div className="flex justify-center gap-4">
           <a
             href={TERMS_URL}
