@@ -20,9 +20,9 @@ export function BrandLogo({ variant = 'header', className, priority }: BrandLogo
       height={LOGO_HEIGHT}
       priority={priority}
       className={cn(
-        variant === 'header' && 'h-9 w-auto sm:h-10',
-        variant === 'auth' && 'mx-auto h-auto w-full max-w-[340px]',
-        variant === 'compact' && 'h-8 w-auto',
+        variant === 'header' && 'h-12 w-auto sm:h-14',
+        variant === 'auth' && 'mx-auto h-auto w-full max-w-[420px] sm:max-w-[440px]',
+        variant === 'compact' && 'h-10 w-auto sm:h-11',
         className,
       )}
     />
