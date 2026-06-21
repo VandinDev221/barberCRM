@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import {
   getEvolutionConnectionState,
+  getWhatsAppProxySecret,
   isEvolutionPlatformConfigured,
   sendEvolutionText,
 } from '@/lib/evolution-platform';
@@ -19,7 +20,7 @@ export async function POST(request: NextRequest) {
       message?: string;
     };
 
-    const expected = process.env.WHATSAPP_PROXY_SECRET || process.env.EVOLUTION_API_KEY;
+    const expected = getWhatsAppProxySecret();
     if (!expected || secret !== expected) {
       return NextResponse.json({ error: 'Não autorizado' }, { status: 401 });
     }

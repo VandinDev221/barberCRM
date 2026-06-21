@@ -19,6 +19,16 @@ export function getEvolutionApiKey(): string {
   return (process.env.EVOLUTION_API_KEY || process.env.WHATSAPP_API_KEY || '').trim();
 }
 
+/** Chave usada pelo proxy Render → Vercel (mesmo valor nos dois lados). */
+export function getWhatsAppProxySecret(): string {
+  return (
+    process.env.WHATSAPP_PROXY_SECRET ||
+    process.env.EVOLUTION_API_KEY ||
+    process.env.WHATSAPP_API_KEY ||
+    ''
+  ).trim();
+}
+
 export function isEvolutionPlatformConfigured(): boolean {
   return Boolean(getEvolutionBaseUrl().startsWith('http') && getEvolutionApiKey());
 }

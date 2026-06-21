@@ -189,7 +189,7 @@ export class WhatsAppService {
       return {
         ok: false,
         error:
-          'WhatsApp não configurado no servidor. No Render, defina WHATSAPP_VERCEL_PROXY_URL e WHATSAPP_PROXY_SECRET (mesma chave da Evolution na Vercel).',
+          'WhatsApp não configurado no servidor. No Render, defina APP_URL e WHATSAPP_PROXY_SECRET (mesmo valor de WHATSAPP_API_KEY na Vercel).',
       };
     }
 
