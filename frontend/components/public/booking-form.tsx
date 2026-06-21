@@ -48,27 +48,45 @@ export function PublicBookingForm({ slug, barberName }: Props) {
       setSlotsLoading(false);
       return;
     }
-    setTime('');
-    setSlotsLoading(true);
-    apiGet<{ slots: Slot[] }>(`/public/${slug}/slots?date=${date}`, { cache: 'no-store' })
-      .then((r) => {
+
+    let cancelled = false;
+
+    async function loadSlots(silent = false) {
+      if (!silent) setSlotsLoading(true);
+      try {
+        const r = await apiGet<{ slots: Slot[] }>(`/public/${slug}/slots?date=${date}`, {
+          cache: 'no-store',
+        });
+        if (cancelled) return;
         const list = r.slots || [];
         const isToday = date === minDate;
-        if (!isToday) {
-          setSlots(list);
-          return;
-        }
-        const now = new Date();
-        const nowMinutes = now.getHours() * 60 + now.getMinutes();
-        setSlots(
-          list.filter((s) => {
-            const [h, m] = s.time.split(':').map(Number);
-            return h * 60 + m > nowMinutes;
-          }),
+        const filtered = !isToday
+          ? list
+          : list.filter((s) => {
+              const now = new Date();
+              const nowMinutes = now.getHours() * 60 + now.getMinutes();
+              const [h, m] = s.time.split(':').map(Number);
+              return h * 60 + m > nowMinutes;
+            });
+        setSlots(filtered);
+        setTime((current) =>
+          current && filtered.some((s) => s.time === current && s.available) ? current : '',
         );
-      })
-      .catch(() => setSlots([]))
-      .finally(() => setSlotsLoading(false));
+      } catch {
+        if (!cancelled) setSlots([]);
+      } finally {
+        if (!cancelled && !silent) setSlotsLoading(false);
+      }
+    }
+
+    setTime('');
+    loadSlots(false);
+    const interval = setInterval(() => loadSlots(true), 30_000);
+
+    return () => {
+      cancelled = true;
+      clearInterval(interval);
+    };
   }, [date, minDate, slug]);
 
   function toggleService(id: string) {

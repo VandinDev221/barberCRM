@@ -33,23 +33,58 @@ export default function AgendaPage() {
   const startStr = format(weekStart, 'yyyy-MM-dd');
   const endDate = addDays(weekStart, 6);
   const endStr = format(endDate, 'yyyy-MM-dd');
+  const appointmentsQueryKey = ['appointments', startStr, endStr] as const;
 
-  const { data, isLoading } = useQuery({
-    queryKey: ['appointments', startStr, endStr],
+  const { data, isLoading, isFetching } = useQuery({
+    queryKey: appointmentsQueryKey,
     queryFn: () => apiGet<{ items: Appointment[] }>(`/appointments?startDate=${startStr}&endDate=${endStr}`),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
   });
 
   const updateStatus = useMutation({
     mutationFn: ({ id, status }: { id: string; status: string }) =>
       apiPatch(`/appointments/${id}/status`, { status }),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+    onMutate: async ({ id, status }) => {
+      await queryClient.cancelQueries({ queryKey: appointmentsQueryKey });
+      const previous = queryClient.getQueryData<{ items: Appointment[] }>(appointmentsQueryKey);
+      if (previous) {
+        queryClient.setQueryData(appointmentsQueryKey, {
+          items: previous.items.map((apt) => (apt.id === id ? { ...apt, status } : apt)),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _vars, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(appointmentsQueryKey, context.previous);
+      }
+    },
+    onSettled: () => queryClient.invalidateQueries({ queryKey: appointmentsQueryKey }),
   });
 
   const confirmAppointment = useMutation({
     mutationFn: (id: string) =>
       apiPatch<{ whatsapp?: { sent: boolean; error?: string } }>(`/appointments/${id}/confirm`, {}),
+    onMutate: async (id) => {
+      await queryClient.cancelQueries({ queryKey: appointmentsQueryKey });
+      const previous = queryClient.getQueryData<{ items: Appointment[] }>(appointmentsQueryKey);
+      if (previous) {
+        queryClient.setQueryData(appointmentsQueryKey, {
+          items: previous.items.map((apt) =>
+            apt.id === id ? { ...apt, status: 'confirmed' } : apt,
+          ),
+        });
+      }
+      return { previous };
+    },
+    onError: (_err, _id, context) => {
+      if (context?.previous) {
+        queryClient.setQueryData(appointmentsQueryKey, context.previous);
+      }
+    },
     onSuccess: (data) => {
-      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      queryClient.invalidateQueries({ queryKey: appointmentsQueryKey });
       if (data.whatsapp?.sent) {
         setConfirmFeedback('Agendamento confirmado e cliente avisado no WhatsApp.');
       } else if (data.whatsapp && !data.whatsapp.sent) {
@@ -76,7 +111,12 @@ export default function AgendaPage() {
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold sm:text-2xl">Agenda</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold sm:text-2xl">Agenda</h1>
+          {isFetching && !isLoading && (
+            <span className="text-[10px] text-muted-foreground/70">atualizando…</span>
+          )}
+        </div>
         <Button asChild className="w-full sm:w-auto">
           <a href="/agenda/novo">
             <Plus className="mr-2 h-4 w-4" />

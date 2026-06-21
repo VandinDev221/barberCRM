@@ -170,7 +170,7 @@ export class AppointmentsService {
     }
     if (status === 'cancelled' && apt.client.phone) {
       const dateStr = formatDateTimePtBr(new Date(apt.startAt));
-      const message = `Olá ${apt.client.name}! Seu agendamento de ${dateStr} foi cancelado. Qualquer dúvida, entre em contato.`;
+      const message = `Olá ${apt.client.name}! Sentimos muito — seu agendamento de ${dateStr} foi cancelado. Qualquer dúvida, entre em contato.`;
       await this.notification.sendWhatsApp(userId, apt.client.phone, message);
     }
     return this.update(userId, id, { status: status as any });
