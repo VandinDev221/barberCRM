@@ -7,6 +7,7 @@ import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { UpdateSlugDto } from './dto/update-slug.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { JwtRefreshGuard } from '../../common/guards/jwt-refresh.guard';
@@ -41,6 +42,14 @@ export class AuthController {
   @ApiOperation({ summary: 'Personalizar endereço do link de agendamento' })
   updateSlug(@CurrentUser('sub') userId: string, @Body() dto: UpdateSlugDto) {
     return this.auth.updateSlug(userId, dto.slug, dto.businessName);
+  }
+
+  @Patch('profile')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Atualizar perfil (telefone para notificações)' })
+  updateProfile(@CurrentUser('sub') userId: string, @Body() dto: UpdateProfileDto) {
+    return this.auth.updateProfile(userId, dto);
   }
 
   @Post('google')

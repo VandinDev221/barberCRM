@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException, Logger } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationService } from '../notification/notification.service';
 import { slugToDisplayName } from '../../common/utils/slug.util';
@@ -32,6 +32,8 @@ function formatDateTimePtBr(date: Date): string {
 
 @Injectable()
 export class PublicService {
+  private readonly logger = new Logger(PublicService.name);
+
   constructor(
     private prisma: PrismaService,
     private notification: NotificationService,
@@ -212,7 +214,10 @@ export class PublicService {
       where: { id: userId },
       select: { phone: true },
     });
-    if (!barber?.phone?.trim()) return;
+    if (!barber?.phone?.trim()) {
+      this.logger.warn(`Barbeiro ${userId} sem telefone — notificação de novo agendamento ignorada`);
+      return;
+    }
 
     const dateStr = formatDateTimePtBr(new Date(appointment.startAt));
     const serviceNames = appointment.services.map((s) => s.service.name).join(', ');
@@ -224,10 +229,11 @@ export class PublicService {
       `Serviços: ${serviceNames}\n\n` +
       `Aguardando confirmação na Agenda.`;
 
-    try {
-      await this.notification.sendWhatsApp(userId, barber.phone.trim(), message);
-    } catch {
-      /* não bloqueia o agendamento se o WhatsApp falhar */
+    const result = await this.notification.sendWhatsApp(userId, barber.phone.trim(), message);
+    if (!result.ok) {
+      this.logger.warn(
+        `Falha ao notificar barbeiro ${userId} por WhatsApp: ${result.error ?? 'erro desconhecido'}`,
+      );
     }
   }
 }

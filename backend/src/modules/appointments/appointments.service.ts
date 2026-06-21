@@ -1,4 +1,4 @@
-import { Injectable, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { NotificationService } from '../notification/notification.service';
@@ -22,6 +22,8 @@ function formatDateTimePtBr(date: Date): string {
 
 @Injectable()
 export class AppointmentsService {
+  private readonly logger = new Logger(AppointmentsService.name);
+
   constructor(
     private prisma: PrismaService,
     private loyalty: LoyaltyService,
@@ -128,12 +130,18 @@ export class AppointmentsService {
     const fromPublic =
       (apt as { fromPublicLink?: boolean }).fromPublicLink ||
       (apt.notes != null && apt.notes.includes('link público'));
+
+    let whatsapp: { sent: boolean; error?: string } | undefined;
     if (fromPublic && updated.client.phone) {
       const dateStr = formatDateTimePtBr(new Date(apt.startAt));
       const message = `Olá ${updated.client.name}! Seu agendamento foi confirmado para ${dateStr}. Até lá!`;
-      await this.notification.sendWhatsApp(userId, updated.client.phone, message);
+      const result = await this.notification.sendWhatsApp(userId, updated.client.phone, message);
+      whatsapp = { sent: result.ok, error: result.error };
+      if (!result.ok) {
+        this.logger.warn(`Confirmação sem WhatsApp ao cliente: ${result.error ?? 'erro desconhecido'}`);
+      }
     }
-    return updated;
+    return { ...updated, whatsapp };
   }
 
   async setStatus(userId: string, id: string, status: string) {

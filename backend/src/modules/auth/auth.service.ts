@@ -13,6 +13,7 @@ import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
 import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { UpdateProfileDto } from './dto/update-profile.dto';
 import { User } from '@prisma/client';
 
 @Injectable()
@@ -148,6 +149,7 @@ export class AuthService {
         id: true,
         email: true,
         name: true,
+        phone: true,
         slug: true,
         businessName: true,
         subscriptionStatus: true,
@@ -207,6 +209,24 @@ export class AuthService {
     });
 
     return { slug: user.slug, businessName: user.businessName };
+  }
+
+  async updateProfile(userId: string, dto: UpdateProfileDto) {
+    if (dto.phone === undefined) {
+      throw new BadRequestException('Informe o telefone.');
+    }
+    const digits = dto.phone.replace(/\D/g, '');
+    if (digits.length < 10 || digits.length > 13) {
+      throw new BadRequestException('Informe um telefone válido com DDD.');
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { phone: dto.phone.trim() },
+      select: { phone: true },
+    });
+
+    return { phone: user.phone };
   }
 
   async register(dto: RegisterDto) {

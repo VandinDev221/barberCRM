@@ -28,6 +28,7 @@ function isPendingPublicConfirmation(apt: Appointment): boolean {
 
 export default function AgendaPage() {
   const [weekStart, setWeekStart] = useState(() => startOfWeek(new Date(), { weekStartsOn: 0 }));
+  const [confirmFeedback, setConfirmFeedback] = useState<string | null>(null);
   const queryClient = useQueryClient();
   const startStr = format(weekStart, 'yyyy-MM-dd');
   const endDate = addDays(weekStart, 6);
@@ -45,8 +46,21 @@ export default function AgendaPage() {
   });
 
   const confirmAppointment = useMutation({
-    mutationFn: (id: string) => apiPatch(`/appointments/${id}/confirm`, {}),
-    onSuccess: () => queryClient.invalidateQueries({ queryKey: ['appointments'] }),
+    mutationFn: (id: string) =>
+      apiPatch<{ whatsapp?: { sent: boolean; error?: string } }>(`/appointments/${id}/confirm`, {}),
+    onSuccess: (data) => {
+      queryClient.invalidateQueries({ queryKey: ['appointments'] });
+      if (data.whatsapp?.sent) {
+        setConfirmFeedback('Agendamento confirmado e cliente avisado no WhatsApp.');
+      } else if (data.whatsapp && !data.whatsapp.sent) {
+        setConfirmFeedback(
+          `Confirmado, mas o WhatsApp não foi enviado: ${data.whatsapp.error ?? 'verifique a conexão em Configurações'}.`,
+        );
+      } else {
+        setConfirmFeedback('Agendamento confirmado.');
+      }
+      setTimeout(() => setConfirmFeedback(null), 8000);
+    },
   });
 
   const days = Array.from({ length: 7 }, (_, i) => addDays(weekStart, i));
@@ -70,6 +84,12 @@ export default function AgendaPage() {
           </a>
         </Button>
       </div>
+
+      {confirmFeedback && (
+        <Card className="mb-4 border-primary/40 bg-primary/5">
+          <CardContent className="pt-4 text-sm">{confirmFeedback}</CardContent>
+        </Card>
+      )}
 
       {pendingConfirmation.length > 0 && (
         <Card className="mb-4 border-amber-500/50 bg-amber-500/10">

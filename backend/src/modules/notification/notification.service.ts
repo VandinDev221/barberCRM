@@ -13,8 +13,8 @@ export class NotificationService {
     userId: string,
     phone: string,
     message: string,
-  ): Promise<boolean> {
+  ): Promise<{ ok: boolean; error?: string }> {
     const result = await this.whatsapp.sendForUser(userId, phone, message);
-    return result.ok;
+    return { ok: result.ok, error: result.error };
   }
 }

@@ -1,4 +1,4 @@
-import { Injectable, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, Logger, ServiceUnavailableException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 
 const FETCH_TIMEOUT_MS = 25_000;
@@ -17,6 +17,8 @@ export type WhatsAppUserStatus = {
 
 @Injectable()
 export class WhatsAppService {
+  private readonly logger = new Logger(WhatsAppService.name);
+
   constructor(private prisma: PrismaService) {}
 
   isPlatformConfigured(): boolean {
@@ -171,11 +173,24 @@ export class WhatsAppService {
       return { ok: false, error: 'Conecte seu WhatsApp em Configurações antes de enviar mensagens.' };
     }
 
-    if (!this.isPlatformConfigured()) {
-      if (this.canUseVercelProxy()) {
-        return this.sendViaVercelProxy(instance, phone, message);
+    // Evolution costuma estar só na Vercel; o proxy envia usando a mesma instância conectada no app.
+    if (this.canUseVercelProxy()) {
+      const viaProxy = await this.sendViaVercelProxy(instance, phone, message);
+      if (viaProxy.ok) return viaProxy;
+      if (!this.isPlatformConfigured()) {
+        this.logger.warn(
+          `WhatsApp via proxy falhou (${viaProxy.error ?? 'erro desconhecido'}) — userId=${userId}`,
+        );
+        return viaProxy;
       }
-      return { ok: false, error: 'WhatsApp não configurado na plataforma' };
+    }
+
+    if (!this.isPlatformConfigured()) {
+      return {
+        ok: false,
+        error:
+          'WhatsApp não configurado no servidor. No Render, defina WHATSAPP_VERCEL_PROXY_URL e WHATSAPP_PROXY_SECRET (mesma chave da Evolution na Vercel).',
+      };
     }
 
     const state = await this.getConnectionState(instance);
@@ -183,7 +198,11 @@ export class WhatsAppService {
       return { ok: false, error: 'WhatsApp desconectado. Escaneie o QR Code em Configurações.' };
     }
 
-    return this.sendText(instance, phone, message);
+    const direct = await this.sendText(instance, phone, message);
+    if (!direct.ok) {
+      this.logger.warn(`WhatsApp direto falhou (${direct.error ?? 'erro'}) — userId=${userId}`);
+    }
+    return direct;
   }
 
   normalizeBrazilPhone(phone: string): string {
@@ -207,8 +226,13 @@ export class WhatsAppService {
   private getVercelProxyUrl(): string | null {
     const explicit = process.env.WHATSAPP_VERCEL_PROXY_URL?.trim();
     if (explicit) return explicit.replace(/\/$/, '');
-    const appUrl = process.env.APP_URL?.trim().replace(/\/$/, '');
-    if (appUrl) return `${appUrl}/api/whatsapp/send-for-user`;
+
+    for (const key of ['FRONTEND_URL', 'APP_URL'] as const) {
+      const base = process.env[key]?.trim().replace(/\/$/, '');
+      if (base?.startsWith('http')) {
+        return `${base}/api/whatsapp/send-for-user`;
+      }
+    }
     return null;
   }
 

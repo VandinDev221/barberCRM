@@ -22,6 +22,11 @@ export default function SettingsPage() {
   const [slugError, setSlugError] = useState('');
   const [linkCopied, setLinkCopied] = useState(false);
 
+  const [barberPhone, setBarberPhone] = useState('');
+  const [phoneSaving, setPhoneSaving] = useState(false);
+  const [phoneSaved, setPhoneSaved] = useState(false);
+  const [phoneError, setPhoneError] = useState('');
+
   const [birthdayMessage, setBirthdayMessage] = useState(DEFAULT_BIRTHDAY_MESSAGE);
   const [birthdaySaving, setBirthdaySaving] = useState(false);
   const [birthdaySaved, setBirthdaySaved] = useState(false);
@@ -33,11 +38,12 @@ export default function SettingsPage() {
     businessName.trim() || (previewSlug ? slugToDisplayName(previewSlug) : '');
 
   useEffect(() => {
-    apiGet<{ slug: string; businessName?: string | null }>('/auth/me')
+    apiGet<{ slug: string; businessName?: string | null; phone?: string | null }>('/auth/me')
       .then((me) => {
         if (me.slug) setSlugInput(me.slug);
         if (me.businessName) setBusinessName(me.businessName);
         else if (me.slug) setBusinessName(slugToDisplayName(me.slug));
+        if (me.phone) setBarberPhone(me.phone);
       })
       .catch(() => {});
   }, []);
@@ -84,6 +90,24 @@ export default function SettingsPage() {
       window.location.href = url;
     } finally {
       setPortalLoading(false);
+    }
+  }
+
+  async function saveBarberPhone() {
+    setPhoneSaving(true);
+    setPhoneSaved(false);
+    setPhoneError('');
+    try {
+      const { phone } = await apiPatch<{ phone: string }>('/auth/profile', {
+        phone: barberPhone.replace(/\D/g, ''),
+      });
+      setBarberPhone(phone);
+      setPhoneSaved(true);
+      setTimeout(() => setPhoneSaved(false), 3000);
+    } catch (err: unknown) {
+      setPhoneError(err instanceof Error ? err.message : 'Não foi possível salvar o telefone.');
+    } finally {
+      setPhoneSaving(false);
     }
   }
 
@@ -219,7 +243,32 @@ export default function SettingsPage() {
             aniversários usam essa conexão automaticamente.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          <div className="space-y-2">
+            <Label htmlFor="barber-phone">Seu telefone (avisos de novos agendamentos)</Label>
+            <Input
+              id="barber-phone"
+              value={barberPhone}
+              onChange={(e) => setBarberPhone(e.target.value)}
+              placeholder="11999998888"
+              inputMode="tel"
+            />
+            <p className="text-xs text-muted-foreground">
+              Quando alguém agenda pelo link público, você recebe uma mensagem neste número. Use DDD
+              + número, só dígitos.
+            </p>
+            {phoneError && (
+              <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+                {phoneError}
+              </p>
+            )}
+            <Button
+              onClick={saveBarberPhone}
+              disabled={phoneSaving || barberPhone.replace(/\D/g, '').length < 10}
+            >
+              {phoneSaving ? 'Salvando...' : phoneSaved ? 'Telefone salvo!' : 'Salvar telefone'}
+            </Button>
+          </div>
           <Button asChild>
             <Link href="/settings/whatsapp">Conectar WhatsApp</Link>
           </Button>
