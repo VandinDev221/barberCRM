@@ -18,6 +18,7 @@ import { SettingsModule } from './modules/settings/settings.module';
 import { PublicModule } from './modules/public/public.module';
 import { NotificationModule } from './modules/notification/notification.module';
 import { PrismaModule } from './common/prisma/prisma.module';
+import { MailModule } from './common/mail/mail.module';
 import { SubscriptionGuard } from './common/guards/subscription.guard';
 
 @Module({
@@ -35,6 +36,7 @@ import { SubscriptionGuard } from './common/guards/subscription.guard';
       },
     ]),
     PrismaModule,
+    MailModule,
     AuthModule,
     ClientsModule,
     AppointmentsModule,

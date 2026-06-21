@@ -1,14 +1,17 @@
-import { Injectable, UnauthorizedException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ServiceUnavailableException, ConflictException, InternalServerErrorException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import { OAuth2Client } from 'google-auth-library';
 import * as bcrypt from 'bcrypt';
+import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
-import { generateUniqueSlug } from '../../common/utils/slug.util';
+import { MailService } from '../../common/mail/mail.service';
+import { generateUniqueSlug, isSlugAvailable, normalizeSlugInput } from '../../common/utils/slug.util';
 import { seedDefaultBarberData } from '../../common/utils/onboarding.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
 import { User } from '@prisma/client';
 
@@ -20,7 +23,22 @@ export class AuthService {
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
+    private mail: MailService,
   ) {}
+
+  private appUrl(): string {
+    return (
+      process.env.APP_URL ||
+      this.config.get<string>('APP_URL') ||
+      'http://localhost:3000'
+    ).replace(/\/$/, '');
+  }
+
+  private passwordResetResponse() {
+    return {
+      message: 'Se o e-mail existir, você receberá um link para redefinir a senha.',
+    };
+  }
 
   private getGoogleClientId(): string | undefined {
     return process.env.GOOGLE_CLIENT_ID || this.config.get<string>('GOOGLE_CLIENT_ID');
@@ -159,6 +177,29 @@ export class AuthService {
     return { onboardingCompleted: true };
   }
 
+  async updateSlug(userId: string, rawSlug: string) {
+    const slug = normalizeSlugInput(rawSlug);
+    if (slug.length < 3) {
+      throw new BadRequestException(
+        'Informe um nome válido com pelo menos 3 caracteres (letras, números ou hífens).',
+      );
+    }
+    const available = await isSlugAvailable(this.prisma, slug, userId);
+    if (!available) {
+      throw new ConflictException(
+        'Este endereço não está disponível. Escolha outro nome para o seu estabelecimento.',
+      );
+    }
+
+    const user = await this.prisma.user.update({
+      where: { id: userId },
+      data: { slug },
+      select: { slug: true },
+    });
+
+    return { slug: user.slug };
+  }
+
   async register(dto: RegisterDto) {
     if (!dto.acceptTerms) {
       throw new BadRequestException('É necessário aceitar os Termos de Uso e a Política de Privacidade.');
@@ -201,16 +242,78 @@ export class AuthService {
   }
 
   async forgotPassword(dto: ForgotPasswordDto) {
+    const generic = this.passwordResetResponse();
     const user = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });
-    if (!user) {
-      return { message: 'Se o e-mail existir, você receberá um link para redefinir a senha.' };
+    if (!user || !user.isActive) {
+      return generic;
     }
     if (!user.passwordHash) {
-      return { message: 'Esta conta usa login com Google. Entre com o botão Continuar com Google.' };
+      return generic;
     }
-    return { message: 'Se o e-mail existir, você receberá um link para redefinir a senha.' };
+
+    const token = randomBytes(32).toString('hex');
+    const tokenHash = createHash('sha256').update(token).digest('hex');
+    const expiresAt = new Date(Date.now() + 60 * 60 * 1000);
+
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordResetToken: tokenHash,
+        passwordResetExpiresAt: expiresAt,
+      },
+    });
+
+    const resetUrl = `${this.appUrl()}/reset-password?token=${token}`;
+
+    try {
+      await this.mail.sendPasswordReset({
+        to: user.email,
+        name: user.name,
+        resetUrl,
+      });
+    } catch (err) {
+      await this.prisma.user.update({
+        where: { id: user.id },
+        data: { passwordResetToken: null, passwordResetExpiresAt: null },
+      });
+      if (!this.mail.isConfigured()) {
+        throw new ServiceUnavailableException(
+          'Envio de e-mail não configurado. Defina RESEND_API_KEY e EMAIL_FROM no servidor.',
+        );
+      }
+      throw new InternalServerErrorException('Não foi possível enviar o e-mail. Tente novamente.');
+    }
+
+    return generic;
+  }
+
+  async resetPassword(dto: ResetPasswordDto) {
+    const tokenHash = createHash('sha256').update(dto.token).digest('hex');
+    const user = await this.prisma.user.findFirst({
+      where: {
+        passwordResetToken: tokenHash,
+        passwordResetExpiresAt: { gt: new Date() },
+      },
+    });
+
+    if (!user) {
+      throw new BadRequestException('Link inválido ou expirado. Solicite um novo e-mail.');
+    }
+
+    const passwordHash = await bcrypt.hash(dto.password, 12);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: {
+        passwordHash,
+        passwordResetToken: null,
+        passwordResetExpiresAt: null,
+        refreshToken: null,
+      },
+    });
+
+    return { message: 'Senha alterada com sucesso. Faça login com a nova senha.' };
   }
 
   async logout(userId: string) {

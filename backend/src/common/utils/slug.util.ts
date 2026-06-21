@@ -1,5 +1,23 @@
 import { PrismaService } from '../prisma/prisma.service';
 
+const RESERVED_SLUGS = new Set([
+  'admin',
+  'api',
+  'agendar',
+  'auth',
+  'billing',
+  'dashboard',
+  'forgot-password',
+  'reset-password',
+  'login',
+  'register',
+  'onboarding',
+  'public',
+  'settings',
+  'termos',
+  'privacidade',
+]);
+
 export function slugify(text: string): string {
   return text
     .normalize('NFD')
@@ -8,6 +26,29 @@ export function slugify(text: string): string {
     .replace(/[^a-z0-9]+/g, '-')
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
+}
+
+export function normalizeSlugInput(raw: string): string {
+  return slugify(raw.trim());
+}
+
+export function isReservedSlug(slug: string): boolean {
+  return RESERVED_SLUGS.has(slug);
+}
+
+export async function isSlugAvailable(
+  prisma: PrismaService,
+  slug: string,
+  excludeUserId?: string,
+): Promise<boolean> {
+  if (!slug || slug.length < 3) return false;
+  if (isReservedSlug(slug)) return false;
+  const existing = await prisma.user.findUnique({
+    where: { slug },
+    select: { id: true },
+  });
+  if (!existing) return true;
+  return excludeUserId ? existing.id === excludeUserId : false;
 }
 
 export async function generateUniqueSlug(

@@ -4,26 +4,69 @@ import { useState, useEffect } from 'react';
 import Link from 'next/link';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
-import { MessageCircle, Cake, Megaphone, CreditCard } from 'lucide-react';
+import { Input } from '@/components/ui/input';
+import { Label } from '@/components/ui/label';
+import { MessageCircle, Cake, Megaphone, CreditCard, Link2, Copy, ExternalLink } from 'lucide-react';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
 import { bookingUrl } from '@/lib/plan';
+import { slugifyPreview } from '@/lib/slug';
 
-const DEFAULT_BIRTHDAY_MESSAGE = 'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!';
+const DEFAULT_BIRTHDAY_MESSAGE =
+  'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!';
 
 export default function SettingsPage() {
+  const [slugInput, setSlugInput] = useState('');
+  const [slugSaving, setSlugSaving] = useState(false);
+  const [slugSaved, setSlugSaved] = useState(false);
+  const [slugError, setSlugError] = useState('');
+  const [linkCopied, setLinkCopied] = useState(false);
+
   const [birthdayMessage, setBirthdayMessage] = useState(DEFAULT_BIRTHDAY_MESSAGE);
   const [birthdaySaving, setBirthdaySaving] = useState(false);
   const [birthdaySaved, setBirthdaySaved] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
-  const [bookingLink, setBookingLink] = useState<string | null>(null);
+
+  const previewSlug = slugifyPreview(slugInput);
+  const bookingLink = previewSlug ? bookingUrl(previewSlug) : '';
 
   useEffect(() => {
     apiGet<{ slug: string }>('/auth/me')
       .then((me) => {
-        if (me.slug) setBookingLink(bookingUrl(me.slug));
+        if (me.slug) setSlugInput(me.slug);
       })
       .catch(() => {});
   }, []);
+
+  useEffect(() => {
+    apiGet<{ key: string; value: string } | null>('/settings?key=birthday_message')
+      .then((r) => {
+        if (r?.value) setBirthdayMessage(r.value);
+      })
+      .catch(() => {});
+  }, []);
+
+  async function saveSlug() {
+    setSlugSaving(true);
+    setSlugSaved(false);
+    setSlugError('');
+    try {
+      const { slug } = await apiPatch<{ slug: string }>('/auth/slug', { slug: slugInput });
+      setSlugInput(slug);
+      setSlugSaved(true);
+      setTimeout(() => setSlugSaved(false), 3000);
+    } catch (err: unknown) {
+      setSlugError(err instanceof Error ? err.message : 'Não foi possível salvar o link.');
+    } finally {
+      setSlugSaving(false);
+    }
+  }
+
+  async function copyBookingLink() {
+    if (!bookingLink) return;
+    await navigator.clipboard.writeText(bookingLink);
+    setLinkCopied(true);
+    setTimeout(() => setLinkCopied(false), 2000);
+  }
 
   async function openBillingPortal() {
     setPortalLoading(true);
@@ -34,14 +77,6 @@ export default function SettingsPage() {
       setPortalLoading(false);
     }
   }
-
-  useEffect(() => {
-    apiGet<{ key: string; value: string } | null>('/settings?key=birthday_message')
-      .then((r) => {
-        if (r?.value) setBirthdayMessage(r.value);
-      })
-      .catch(() => {});
-  }, []);
 
   async function saveBirthdayMessage() {
     setBirthdaySaving(true);
@@ -58,28 +93,79 @@ export default function SettingsPage() {
   return (
     <div className="p-4 sm:p-6">
       <h1 className="mb-4 text-xl font-bold sm:mb-6 sm:text-2xl">Configurações</h1>
+
       <Card>
         <CardHeader>
-          <CardTitle>Configurações gerais</CardTitle>
+          <CardTitle className="flex items-center gap-2">
+            <Link2 className="h-5 w-5" />
+            Link de agendamento online
+          </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Integrações WhatsApp, backup e preferências podem ser adicionados aqui.
+            Escolha o endereço do seu estabelecimento. Seus clientes acessam esse link para agendar
+            horários 24h por dia.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
-          <ul className="list-inside list-disc text-sm text-muted-foreground space-y-1">
-            <li>
-              <strong className="text-foreground">Link de agendamento:</strong>{' '}
-              {bookingLink ? (
-                <a href={bookingLink} className="text-primary hover:underline break-all" target="_blank" rel="noreferrer">
-                  {bookingLink}
+          <div className="space-y-2">
+            <Label htmlFor="booking-slug">Nome do estabelecimento (URL)</Label>
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
+              <span className="shrink-0 text-sm text-muted-foreground">…/agendar/</span>
+              <Input
+                id="booking-slug"
+                value={slugInput}
+                onChange={(e) => setSlugInput(e.target.value)}
+                placeholder="barbearia-do-joao"
+                className="font-mono text-sm"
+              />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Use letras, números e hífens. Ex.: &quot;Barbearia do João&quot; vira{' '}
+              <span className="font-mono text-foreground">barbearia-do-joao</span>
+            </p>
+          </div>
+
+          {previewSlug && (
+            <div className="rounded-lg border border-border/60 bg-muted/30 p-3">
+              <p className="text-xs font-medium uppercase tracking-wide text-muted-foreground">
+                Link completo
+              </p>
+              <a
+                href={bookingLink}
+                target="_blank"
+                rel="noreferrer"
+                className="mt-1 block break-all text-sm text-primary hover:underline"
+              >
+                {bookingLink}
+              </a>
+            </div>
+          )}
+
+          {slugError && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">{slugError}</p>
+          )}
+
+          <div className="flex flex-wrap gap-2">
+            <Button onClick={saveSlug} disabled={slugSaving || !slugInput.trim()}>
+              {slugSaving ? 'Salvando...' : slugSaved ? 'Link salvo!' : 'Salvar link'}
+            </Button>
+            <Button
+              type="button"
+              variant="outline"
+              onClick={copyBookingLink}
+              disabled={!bookingLink}
+            >
+              <Copy className="mr-2 h-4 w-4" />
+              {linkCopied ? 'Copiado!' : 'Copiar link'}
+            </Button>
+            {bookingLink && (
+              <Button type="button" variant="ghost" asChild>
+                <a href={bookingLink} target="_blank" rel="noreferrer">
+                  <ExternalLink className="mr-2 h-4 w-4" />
+                  Abrir página
                 </a>
-              ) : (
-                'carregando...'
-              )}
-            </li>
-            <li><strong className="text-foreground">Exportar relatórios:</strong> use o botão &quot;Exportar CSV&quot; na página Relatórios.</li>
-            <li><strong className="text-foreground">Backup:</strong> use o script em <code className="bg-muted px-1 rounded">backend/scripts/backup.sh</code> (veja README).</li>
-          </ul>
+              </Button>
+            )}
+          </div>
         </CardContent>
       </Card>
 
@@ -125,7 +211,8 @@ export default function SettingsPage() {
             Mensagem de aniversário
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Texto enviado automaticamente no dia do aniversário do cliente (use <code className="bg-muted px-1 rounded">{'{{name}}'}</code> para o nome).
+            Texto enviado automaticamente no dia do aniversário do cliente (use{' '}
+            <code className="rounded bg-muted px-1">{'{{name}}'}</code> para o nome).
           </p>
         </CardHeader>
         <CardContent className="space-y-3">
@@ -148,7 +235,8 @@ export default function SettingsPage() {
             Campanhas
           </CardTitle>
           <p className="text-sm text-muted-foreground">
-            Envie uma mensagem por WhatsApp para vários clientes de uma vez. Selecione os contatos e escreva o texto.
+            Envie uma mensagem por WhatsApp para vários clientes de uma vez. Selecione os contatos e
+            escreva o texto.
           </p>
         </CardHeader>
         <CardContent>

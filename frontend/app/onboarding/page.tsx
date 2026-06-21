@@ -93,6 +93,10 @@ export default function OnboardingPage() {
               <Copy className="mr-2 h-4 w-4" />
               {copied ? 'Copiado!' : 'Copiar link'}
             </Button>
+            <p className="mt-2 text-xs text-muted-foreground">
+              Quer personalizar o endereço? Em Configurações você pode escolher o nome do seu
+              estabelecimento na URL.
+            </p>
           </div>
 
           <div>

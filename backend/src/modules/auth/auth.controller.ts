@@ -1,10 +1,12 @@
-import { Body, Controller, Get, Post, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Patch, Post, UseGuards } from '@nestjs/common';
 import { ApiTags, ApiOperation, ApiBearerAuth } from '@nestjs/swagger';
 import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { ResetPasswordDto } from './dto/reset-password.dto';
 import { GoogleAuthDto } from './dto/google-auth.dto';
+import { UpdateSlugDto } from './dto/update-slug.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { JwtRefreshGuard } from '../../common/guards/jwt-refresh.guard';
@@ -33,6 +35,14 @@ export class AuthController {
     return this.auth.completeOnboarding(userId);
   }
 
+  @Patch('slug')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Personalizar endereço do link de agendamento' })
+  updateSlug(@CurrentUser('sub') userId: string, @Body() dto: UpdateSlugDto) {
+    return this.auth.updateSlug(userId, dto.slug);
+  }
+
   @Post('google')
   @ApiOperation({ summary: 'Login ou registro com Google (ID token)' })
   google(@Body() dto: GoogleAuthDto) {
@@ -59,9 +69,15 @@ export class AuthController {
   }
 
   @Post('forgot-password')
-  @ApiOperation({ summary: 'Solicitar recuperação de senha' })
+  @ApiOperation({ summary: 'Solicitar recuperação de senha por e-mail' })
   forgotPassword(@Body() dto: ForgotPasswordDto) {
     return this.auth.forgotPassword(dto);
+  }
+
+  @Post('reset-password')
+  @ApiOperation({ summary: 'Redefinir senha com token do e-mail' })
+  resetPassword(@Body() dto: ResetPasswordDto) {
+    return this.auth.resetPassword(dto);
   }
 
   @Post('logout')

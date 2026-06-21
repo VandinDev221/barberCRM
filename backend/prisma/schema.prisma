@@ -29,6 +29,8 @@ model User {
   currentPeriodEnd     DateTime? @map("current_period_end")
   slug                 String?   @unique @map("slug")
   onboardingCompleted  Boolean   @default(false) @map("onboarding_completed")
+  passwordResetToken     String?   @map("password_reset_token")
+  passwordResetExpiresAt DateTime? @map("password_reset_expires_at")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
