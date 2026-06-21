@@ -10,11 +10,13 @@ import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiPost } from '@/lib/api';
 import { postAuthRedirect } from '@/lib/subscription';
+import { PRIVACY_URL, TERMS_URL } from '@/lib/legal';
 
 type AuthResponse = {
   accessToken: string;
   refreshToken: string;
   subscriptionStatus?: string;
+  onboardingCompleted?: boolean;
 };
 
 export default function RegisterPage() {
@@ -23,12 +25,17 @@ export default function RegisterPage() {
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
   const [password, setPassword] = useState('');
+  const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
+    if (!acceptTerms) {
+      setError('Aceite os Termos de Uso e a Política de Privacidade para continuar.');
+      return;
+    }
     setLoading(true);
     try {
       const res = await apiPost<AuthResponse>('/auth/register', {
@@ -36,10 +43,16 @@ export default function RegisterPage() {
         email,
         phone: phone || undefined,
         password,
+        acceptTerms: true,
       });
       localStorage.setItem('accessToken', res.accessToken);
       localStorage.setItem('refreshToken', res.refreshToken);
-      router.replace(postAuthRedirect(res.subscriptionStatus));
+      router.replace(
+        postAuthRedirect({
+          subscriptionStatus: res.subscriptionStatus,
+          onboardingCompleted: res.onboardingCompleted,
+        }),
+      );
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta');
     } finally {
@@ -71,12 +84,7 @@ export default function RegisterPage() {
             )}
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
-              <Input
-                id="name"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
@@ -109,6 +117,26 @@ export default function RegisterPage() {
                 required
               />
             </div>
+            <label className="flex items-start gap-2 text-sm">
+              <input
+                type="checkbox"
+                checked={acceptTerms}
+                onChange={(e) => setAcceptTerms(e.target.checked)}
+                className="mt-1 h-4 w-4"
+                required
+              />
+              <span>
+                Li e aceito os{' '}
+                <a href={TERMS_URL} className="underline" target="_blank" rel="noopener noreferrer">
+                  Termos de Uso
+                </a>{' '}
+                e a{' '}
+                <a href={PRIVACY_URL} className="underline" target="_blank" rel="noopener noreferrer">
+                  Política de Privacidade
+                </a>
+                .
+              </span>
+            </label>
             <Button type="submit" className="w-full" disabled={loading}>
               {loading ? 'Criando conta...' : 'Criar conta'}
             </Button>

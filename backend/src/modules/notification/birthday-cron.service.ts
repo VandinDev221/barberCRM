@@ -4,9 +4,8 @@ import { PrismaService } from '../../common/prisma/prisma.service';
 import { NotificationService } from './notification.service';
 
 /**
- * Envia mensagem de aniversário por WhatsApp automaticamente, sem interação do admin.
+ * Envia mensagem de aniversário por WhatsApp automaticamente.
  * Roda todo dia às 09:00 no fuso do barbeiro (por padrão 12:00 UTC = 09:00 Brasil).
- * Exige: barbeiro com WhatsApp conectado em Configurações e EVOLUTION_* no servidor.
  */
 @Injectable()
 export class BirthdayCronService {
@@ -19,27 +18,36 @@ export class BirthdayCronService {
   async sendBirthdayGreetings() {
     if (process.env.BIRTHDAY_WHATSAPP_ENABLED === 'false') return;
 
-    const userId = await this.getDefaultUserId();
     const offsetHours = parseInt(process.env.BARBER_TZ_OFFSET_HOURS ?? '3', 10);
     const barberNow = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
     const todayMonth = barberNow.getUTCMonth();
     const todayDay = barberNow.getUTCDate();
 
-    const clients = await this.prisma.client.findMany({
+    const users = await this.prisma.user.findMany({
       where: {
-        userId,
-        birthDate: { not: null },
+        isActive: true,
+        subscriptionStatus: { in: ['active', 'trialing'] },
       },
-      select: { name: true, phone: true, birthDate: true },
+      select: { id: true },
     });
 
-    const template = await this.getBirthdayMessageTemplate(userId);
-    for (const c of clients) {
-      if (!c.birthDate) continue;
-      const b = new Date(c.birthDate);
-      if (b.getUTCMonth() !== todayMonth || b.getUTCDate() !== todayDay) continue;
-      const message = template.replace(/\{\{name\}\}/g, c.name);
-      await this.notification.sendWhatsApp(userId, c.phone, message);
+    for (const user of users) {
+      const clients = await this.prisma.client.findMany({
+        where: {
+          userId: user.id,
+          birthDate: { not: null },
+        },
+        select: { name: true, phone: true, birthDate: true },
+      });
+
+      const template = await this.getBirthdayMessageTemplate(user.id);
+      for (const c of clients) {
+        if (!c.birthDate) continue;
+        const b = new Date(c.birthDate);
+        if (b.getUTCMonth() !== todayMonth || b.getUTCDate() !== todayDay) continue;
+        const message = template.replace(/\{\{name\}\}/g, c.name);
+        await this.notification.sendWhatsApp(user.id, c.phone, message);
+      }
     }
   }
 
@@ -47,15 +55,9 @@ export class BirthdayCronService {
     const s = await this.prisma.setting.findUnique({
       where: { userId_key: { userId, key: 'birthday_message' } },
     });
-    return (s?.value?.trim() && s.value) || 'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!';
-  }
-
-  private async getDefaultUserId(): Promise<string> {
-    const user = await this.prisma.user.findFirst({
-      where: { isActive: true },
-      select: { id: true },
-    });
-    if (!user) return '';
-    return user.id;
+    return (
+      (s?.value?.trim() && s.value) ||
+      'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!'
+    );
   }
 }

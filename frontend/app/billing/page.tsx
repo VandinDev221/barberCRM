@@ -7,9 +7,8 @@ import Image from 'next/image';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiGet, apiPost } from '@/lib/api';
-import { isSubscriptionActive } from '@/lib/subscription';
-
-type BillingStatus = {
+import { fetchPublicPlan, type PlanInfo } from '@/lib/plan';
+import { isSubscriptionActive, postAuthRedirect } from '@/lib/subscription';
   subscriptionStatus: string;
   currentPeriodEnd: string | null;
   isActive: boolean;
@@ -19,6 +18,7 @@ export default function BillingPage() {
   const router = useRouter();
   const [canceled, setCanceled] = useState(false);
   const [status, setStatus] = useState<BillingStatus | null>(null);
+  const [plan, setPlan] = useState<PlanInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [checkoutLoading, setCheckoutLoading] = useState(false);
   const [error, setError] = useState('');
@@ -30,10 +30,16 @@ export default function BillingPage() {
       router.replace('/login');
       return;
     }
-    apiGet<BillingStatus>('/billing/status')
-      .then((data) => {
+    Promise.all([apiGet<BillingStatus>('/billing/status'), fetchPublicPlan()])
+      .then(async ([data, planInfo]) => {
         setStatus(data);
-        if (data.isActive) router.replace('/dashboard');
+        setPlan(planInfo);
+        if (data.isActive) {
+          const me = await apiGet<{ subscriptionStatus: string; onboardingCompleted: boolean }>(
+            '/auth/me',
+          );
+          router.replace(postAuthRedirect(me));
+        }
       })
       .catch((err: unknown) => {
         setError(err instanceof Error ? err.message : 'Erro ao carregar assinatura');
@@ -73,12 +79,22 @@ export default function BillingPage() {
             className="h-auto w-full rounded-md border border-border/40"
             priority
           />
-          <CardTitle>Assine o Barber CRM</CardTitle>
+          <CardTitle>Assine o {plan?.productName || 'Barber CRM'}</CardTitle>
           <p className="text-sm text-muted-foreground">
             Ative sua assinatura para acessar agenda, clientes, WhatsApp e relatórios.
           </p>
         </CardHeader>
         <CardContent className="space-y-4">
+          {plan && (
+            <div className="rounded-md border border-primary/30 bg-primary/5 p-4 text-center">
+              <p className="text-3xl font-bold text-foreground">{plan.priceLabel}</p>
+              {plan.trialDays > 0 && (
+                <p className="mt-1 text-sm text-muted-foreground">
+                  {plan.trialDays} dias grátis · cancele quando quiser
+                </p>
+              )}
+            </div>
+          )}
           {canceled && (
             <p className="rounded-md bg-muted p-3 text-sm">
               Checkout cancelado. Você pode tentar novamente quando quiser.
@@ -89,18 +105,25 @@ export default function BillingPage() {
           )}
           {status && !isSubscriptionActive(status.subscriptionStatus) && (
             <p className="text-sm text-muted-foreground">
-              Status atual: <span className="font-medium text-foreground">{status.subscriptionStatus}</span>
+              Status: <span className="font-medium text-foreground">{status.subscriptionStatus}</span>
             </p>
           )}
           <ul className="list-inside list-disc space-y-1 text-sm text-muted-foreground">
-            <li>Agenda e agendamento online</li>
+            <li>Agenda e agendamento online personalizado</li>
             <li>CRM de clientes e fidelização</li>
             <li>WhatsApp, campanhas e aniversários</li>
             <li>Financeiro, estoque e relatórios</li>
           </ul>
           <Button className="w-full" onClick={startCheckout} disabled={checkoutLoading}>
-            {checkoutLoading ? 'Redirecionando...' : 'Assinar agora'}
+            {checkoutLoading
+              ? 'Redirecionando...'
+              : plan && plan.trialDays > 0
+                ? `Começar ${plan.trialDays} dias grátis`
+                : 'Assinar agora'}
           </Button>
+          <p className="text-center text-xs text-muted-foreground">
+            Pagamento seguro via Stripe. Sem dados de cartão armazenados em nossos servidores.
+          </p>
           <p className="text-center text-sm text-muted-foreground">
             <Link href="/login" className="underline hover:text-foreground">
               Sair e voltar ao login

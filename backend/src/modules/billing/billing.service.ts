@@ -32,6 +32,53 @@ export class BillingService {
     ).replace(/\/$/, '');
   }
 
+  private trialDays(): number {
+    const raw = process.env.STRIPE_TRIAL_DAYS || this.config.get<string>('STRIPE_TRIAL_DAYS') || '0';
+    const n = parseInt(raw, 10);
+    return Number.isFinite(n) && n > 0 ? n : 0;
+  }
+
+  async getPublicPlan() {
+    const trialDays = this.trialDays();
+    const priceId = process.env.STRIPE_PRICE_ID || this.config.get<string>('STRIPE_PRICE_ID');
+
+    if (!this.stripe || !priceId) {
+      return {
+        priceLabel: 'Consulte',
+        amount: null,
+        currency: 'brl',
+        interval: 'month',
+        trialDays,
+        productName: 'Barber CRM Pro',
+      };
+    }
+
+    try {
+      const price = await this.stripe.prices.retrieve(priceId, { expand: ['product'] });
+      const amount = price.unit_amount != null ? price.unit_amount / 100 : null;
+      const currency = (price.currency || 'brl').toUpperCase();
+      const interval = price.recurring?.interval || 'month';
+      const intervalLabel = interval === 'month' ? 'mês' : interval === 'year' ? 'ano' : interval;
+      const priceLabel =
+        amount != null
+          ? `${amount.toLocaleString('pt-BR', { style: 'currency', currency })}/${intervalLabel}`
+          : 'Consulte';
+      const product = price.product as Stripe.Product | string;
+      const productName = typeof product === 'string' ? 'Barber CRM Pro' : product.name;
+
+      return { priceLabel, amount, currency, interval, trialDays, productName };
+    } catch {
+      return {
+        priceLabel: 'Consulte',
+        amount: null,
+        currency: 'BRL',
+        interval: 'month',
+        trialDays,
+        productName: 'Barber CRM Pro',
+      };
+    }
+  }
+
   async getStatus(userId: string) {
     const user = await this.prisma.user.findUnique({
       where: { id: userId },
@@ -74,6 +121,14 @@ export class BillingService {
       });
     }
 
+    const trialDays = this.trialDays();
+    const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
+      metadata: { userId },
+    };
+    if (trialDays > 0) {
+      subscriptionData.trial_period_days = trialDays;
+    }
+
     const session = await stripe.checkout.sessions.create({
       mode: 'subscription',
       customer: customerId,
@@ -84,7 +139,7 @@ export class BillingService {
       allow_promotion_codes: true,
       billing_address_collection: 'auto',
       metadata: { userId },
-      subscription_data: { metadata: { userId } },
+      subscription_data: subscriptionData,
     });
 
     if (!session.url) throw new BadRequestException('Não foi possível criar sessão de checkout.');

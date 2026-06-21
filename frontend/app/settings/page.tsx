@@ -6,6 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { MessageCircle, Cake, Megaphone, CreditCard } from 'lucide-react';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
+import { bookingUrl } from '@/lib/plan';
 
 const DEFAULT_BIRTHDAY_MESSAGE = 'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!';
 
@@ -14,6 +15,15 @@ export default function SettingsPage() {
   const [birthdaySaving, setBirthdaySaving] = useState(false);
   const [birthdaySaved, setBirthdaySaved] = useState(false);
   const [portalLoading, setPortalLoading] = useState(false);
+  const [bookingLink, setBookingLink] = useState<string | null>(null);
+
+  useEffect(() => {
+    apiGet<{ slug: string }>('/auth/me')
+      .then((me) => {
+        if (me.slug) setBookingLink(bookingUrl(me.slug));
+      })
+      .catch(() => {});
+  }, []);
 
   async function openBillingPortal() {
     setPortalLoading(true);
@@ -57,7 +67,16 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <ul className="list-inside list-disc text-sm text-muted-foreground space-y-1">
-            <li><strong className="text-foreground">Link de agendamento:</strong> compartilhe <a href="/agendar" className="text-primary hover:underline">/agendar</a> para clientes agendarem sem login.</li>
+            <li>
+              <strong className="text-foreground">Link de agendamento:</strong>{' '}
+              {bookingLink ? (
+                <a href={bookingLink} className="text-primary hover:underline break-all" target="_blank" rel="noreferrer">
+                  {bookingLink}
+                </a>
+              ) : (
+                'carregando...'
+              )}
+            </li>
             <li><strong className="text-foreground">Exportar relatórios:</strong> use o botão &quot;Exportar CSV&quot; na página Relatórios.</li>
             <li><strong className="text-foreground">Backup:</strong> use o script em <code className="bg-muted px-1 rounded">backend/scripts/backup.sh</code> (veja README).</li>
           </ul>

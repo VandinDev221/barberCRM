@@ -5,8 +5,10 @@ import { useRouter } from 'next/navigation';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { Button } from '@/components/ui/button';
 import { apiGet } from '@/lib/api';
+import { postAuthRedirect } from '@/lib/subscription';
 
 type BillingStatus = { isActive: boolean; subscriptionStatus: string };
+type Me = { subscriptionStatus: string; onboardingCompleted: boolean };
 
 export default function BillingSuccessPage() {
   const router = useRouter();
@@ -27,9 +29,10 @@ export default function BillingSuccessPage() {
       try {
         const data = await apiGet<BillingStatus>('/billing/status');
         if (data.isActive) {
+          const me = await apiGet<Me>('/auth/me');
           setMessage('Assinatura ativa! Redirecionando...');
           setReady(true);
-          setTimeout(() => router.replace('/dashboard'), 1500);
+          setTimeout(() => router.replace(postAuthRedirect(me)), 1500);
           return;
         }
       } catch {
@@ -38,7 +41,7 @@ export default function BillingSuccessPage() {
       attempts += 1;
       if (attempts >= maxAttempts) {
         setMessage(
-          'Pagamento recebido. Se o acesso não liberar em instantes, aguarde alguns segundos e clique abaixo.',
+          'Pagamento recebido. Se o acesso não liberar em instantes, aguarde e clique abaixo.',
         );
         setReady(true);
         return;
@@ -58,8 +61,14 @@ export default function BillingSuccessPage() {
         <CardContent className="space-y-4">
           <p className="text-muted-foreground">{message}</p>
           {ready && (
-            <Button className="w-full" onClick={() => router.replace('/dashboard')}>
-              Ir para o dashboard
+            <Button
+              className="w-full"
+              onClick={async () => {
+                const me = await apiGet<Me>('/auth/me');
+                router.replace(postAuthRedirect(me));
+              }}
+            >
+              Continuar
             </Button>
           )}
         </CardContent>

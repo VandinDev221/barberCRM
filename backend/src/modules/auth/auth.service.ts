@@ -1,8 +1,10 @@
-import { Injectable, UnauthorizedException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { generateUniqueSlug } from '../../common/utils/slug.util';
+import { seedDefaultBarberData } from '../../common/utils/onboarding.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
@@ -36,9 +38,12 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        slug: user.slug,
         subscriptionStatus: user.subscriptionStatus,
+        onboardingCompleted: user.onboardingCompleted,
       },
       subscriptionStatus: user.subscriptionStatus,
+      onboardingCompleted: user.onboardingCompleted,
       ...tokens,
     };
   }
@@ -50,18 +55,39 @@ export class AuthService {
         id: true,
         email: true,
         name: true,
+        slug: true,
         subscriptionStatus: true,
         currentPeriodEnd: true,
+        onboardingCompleted: true,
       },
     });
     if (!user) throw new UnauthorizedException('Usuário não encontrado');
+
+    let slug = user.slug;
+    if (!slug) {
+      slug = await generateUniqueSlug(this.prisma, user.name, user.email);
+      await this.prisma.user.update({ where: { id: userId }, data: { slug } });
+    }
+
     return {
       ...user,
+      slug,
       isActive: ['active', 'trialing'].includes(user.subscriptionStatus),
     };
   }
 
+  async completeOnboarding(userId: string) {
+    await this.prisma.user.update({
+      where: { id: userId },
+      data: { onboardingCompleted: true },
+    });
+    return { onboardingCompleted: true };
+  }
+
   async register(dto: RegisterDto) {
+    if (!dto.acceptTerms) {
+      throw new BadRequestException('É necessário aceitar os Termos de Uso e a Política de Privacidade.');
+    }
     const exists = await this.prisma.user.findUnique({
       where: { email: dto.email.toLowerCase() },
     });
@@ -69,14 +95,18 @@ export class AuthService {
       throw new UnauthorizedException('E-mail já cadastrado');
     }
     const hash = await bcrypt.hash(dto.password, 12);
+    const slug = await generateUniqueSlug(this.prisma, dto.name, dto.email);
     const user = await this.prisma.user.create({
       data: {
         email: dto.email.toLowerCase(),
         passwordHash: hash,
         name: dto.name,
         phone: dto.phone,
+        slug,
+        onboardingCompleted: false,
       },
     });
+    await seedDefaultBarberData(this.prisma, user.id);
     const tokens = await this.issueTokens(user.id, user.email);
     await this.prisma.user.update({
       where: { id: user.id },
@@ -87,9 +117,12 @@ export class AuthService {
         id: user.id,
         email: user.email,
         name: user.name,
+        slug: user.slug,
         subscriptionStatus: user.subscriptionStatus,
+        onboardingCompleted: user.onboardingCompleted,
       },
       subscriptionStatus: user.subscriptionStatus,
+      onboardingCompleted: user.onboardingCompleted,
       ...tokens,
     };
   }

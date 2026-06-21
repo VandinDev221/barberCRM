@@ -1,5 +1,5 @@
 import { ApiProperty } from '@nestjs/swagger';
-import { IsEmail, IsString, MinLength, IsOptional } from 'class-validator';
+import { IsEmail, IsString, MinLength, IsOptional, IsBoolean, Equals } from 'class-validator';
 
 export class RegisterDto {
   @ApiProperty()
@@ -19,4 +19,9 @@ export class RegisterDto {
   @IsOptional()
   @IsString()
   phone?: string;
+
+  @ApiProperty({ description: 'Aceite dos Termos de Uso e Política de Privacidade' })
+  @IsBoolean()
+  @Equals(true, { message: 'É necessário aceitar os Termos de Uso e a Política de Privacidade.' })
+  acceptTerms: boolean;
 }

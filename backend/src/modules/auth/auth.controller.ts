@@ -24,6 +24,14 @@ export class AuthController {
     return this.auth.me(userId);
   }
 
+  @Post('onboarding/complete')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Concluir onboarding inicial' })
+  completeOnboarding(@CurrentUser('sub') userId: string) {
+    return this.auth.completeOnboarding(userId);
+  }
+
   @Post('login')
   @ApiOperation({ summary: 'Login com e-mail e senha' })
   login(@Body() dto: LoginDto) {

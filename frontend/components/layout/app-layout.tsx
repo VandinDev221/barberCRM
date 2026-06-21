@@ -2,6 +2,7 @@
 
 import { usePathname } from 'next/navigation';
 import { Sidebar } from './sidebar';
+import { SubscriptionGate } from './subscription-gate';
 
 const SIDEBAR_PATHS = [
   '/dashboard',
@@ -24,9 +25,11 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   return (
-    <div className="min-h-screen bg-background">
-      <Sidebar />
-      <main className="min-h-screen pt-14 pl-0 md:pt-0 md:pl-56">{children}</main>
-    </div>
+    <SubscriptionGate>
+      <div className="min-h-screen bg-background">
+        <Sidebar />
+        <main className="min-h-screen pt-14 pl-0 md:pt-0 md:pl-56">{children}</main>
+      </div>
+    </SubscriptionGate>
   );
 }

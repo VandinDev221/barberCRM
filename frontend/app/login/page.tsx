@@ -15,6 +15,7 @@ type AuthResponse = {
   accessToken: string;
   refreshToken: string;
   subscriptionStatus?: string;
+  onboardingCompleted?: boolean;
 };
 
 export default function LoginPage() {
@@ -32,7 +33,12 @@ export default function LoginPage() {
       const res = await apiPost<AuthResponse>('/auth/login', { email, password });
       localStorage.setItem('accessToken', res.accessToken);
       localStorage.setItem('refreshToken', res.refreshToken);
-      router.replace(postAuthRedirect(res.subscriptionStatus));
+      router.replace(
+        postAuthRedirect({
+          subscriptionStatus: res.subscriptionStatus,
+          onboardingCompleted: res.onboardingCompleted,
+        }),
+      );
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao entrar';
       const isApiConfig =

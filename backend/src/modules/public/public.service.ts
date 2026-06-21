@@ -1,4 +1,4 @@
-import { Injectable, BadRequestException } from '@nestjs/common';
+import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { PublicBookingDto } from './dto/public-booking.dto';
 
@@ -6,7 +6,6 @@ const SLOT_MINUTES = 30;
 const WORK_START = 8;
 const WORK_END = 18;
 
-/** Horas a somar ao horário local do barbeiro para obter UTC. Brasil = 3 (UTC-3). Usado para os horários do link público baterem com a Agenda. */
 function getBarberTzOffsetHours(): number {
   const v = process.env.BARBER_TZ_OFFSET_HOURS;
   if (v !== undefined && v !== '') {
@@ -20,16 +19,24 @@ function getBarberTzOffsetHours(): number {
 export class PublicService {
   constructor(private prisma: PrismaService) {}
 
-  private async getDefaultUserId(): Promise<string> {
+  private async resolveUserId(slug: string): Promise<string> {
     const user = await this.prisma.user.findFirst({
-      where: { isActive: true },
-      select: { id: true },
+      where: { slug, isActive: true },
+      select: { id: true, name: true },
     });
-    if (!user) throw new BadRequestException('Sistema não configurado para agendamento.');
+    if (!user) throw new NotFoundException('Barbeiro não encontrado.');
     return user.id;
   }
 
-  /** Busca cliente por telefone (normalizado) ou e-mail para evitar duplicidade no link público. */
+  async getBarberProfile(slug: string) {
+    const user = await this.prisma.user.findFirst({
+      where: { slug, isActive: true },
+      select: { id: true, name: true, slug: true },
+    });
+    if (!user) throw new NotFoundException('Barbeiro não encontrado.');
+    return { name: user.name, slug: user.slug };
+  }
+
   private async findClientByPhoneOrEmail(
     userId: string,
     normalizedPhone: string,
@@ -39,23 +46,25 @@ export class PublicService {
       where: { userId },
       select: { id: true, name: true, phone: true, email: true },
     });
-    return clients.find(
-      (c) =>
-        c.phone.replace(/\D/g, '') === normalizedPhone ||
-        (email != null && c.email != null && c.email.trim().toLowerCase() === email),
-    ) ?? null;
+    return (
+      clients.find(
+        (c) =>
+          c.phone.replace(/\D/g, '') === normalizedPhone ||
+          (email != null && c.email != null && c.email.trim().toLowerCase() === email),
+      ) ?? null
+    );
   }
 
-  async getServices() {
-    const userId = await this.getDefaultUserId();
+  async getServices(slug: string) {
+    const userId = await this.resolveUserId(slug);
     return this.prisma.service.findMany({
       where: { userId, isActive: true },
       orderBy: { name: 'asc' },
     });
   }
 
-  async getSlots(dateStr: string) {
-    const userId = await this.getDefaultUserId();
+  async getSlots(slug: string, dateStr: string) {
+    const userId = await this.resolveUserId(slug);
     const date = new Date(dateStr + 'T00:00:00');
     if (isNaN(date.getTime())) throw new BadRequestException('Data inválida');
 
@@ -85,7 +94,7 @@ export class PublicService {
         (a) =>
           (slotStart >= (a.startAt as Date) && slotStart < (a.endAt as Date)) ||
           (slotEnd > (a.startAt as Date) && slotEnd <= (a.endAt as Date)) ||
-          (slotStart <= (a.startAt as Date) && slotEnd >= (a.endAt as Date))
+          (slotStart <= (a.startAt as Date) && slotEnd >= (a.endAt as Date)),
       );
       const localHour = slotStart.getUTCHours() - tzOffset;
       const localMin = slotStart.getUTCMinutes();
@@ -104,8 +113,8 @@ export class PublicService {
     return { slots };
   }
 
-  async createBooking(dto: PublicBookingDto) {
-    const userId = await this.getDefaultUserId();
+  async createBooking(slug: string, dto: PublicBookingDto) {
+    const userId = await this.resolveUserId(slug);
     const [year, month, day] = dto.date.split('-').map(Number);
     const [hour, min] = dto.time.split(':').map(Number);
     const tzOffset = getBarberTzOffsetHours();
@@ -140,7 +149,6 @@ export class PublicService {
         },
       });
     }
-    // Cliente já existe (por telefone ou e-mail): não alterar nome/email para não sobrescrever o cadastro
 
     const appointment = await this.prisma.appointment.create({
       data: {

@@ -26,6 +26,8 @@ model User {
   stripeSubscriptionId String?   @map("stripe_subscription_id")
   subscriptionStatus   String    @default("inactive") @map("subscription_status")
   currentPeriodEnd     DateTime? @map("current_period_end")
+  slug                 String?   @unique @map("slug")
+  onboardingCompleted  Boolean   @default(false) @map("onboarding_completed")
   createdAt     DateTime  @default(now()) @map("created_at")
   updatedAt     DateTime  @updatedAt @map("updated_at")
 
