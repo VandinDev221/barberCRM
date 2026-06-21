@@ -35,6 +35,12 @@ export function GoogleSignInButton({
   const [scriptReady, setScriptReady] = useState(false);
 
   useEffect(() => {
+    if (window.google?.accounts?.id) {
+      setScriptReady(true);
+    }
+  }, []);
+
+  useEffect(() => {
     if (envClientId) return;
 
     apiGet<AuthConfig>('/public/auth-config')
@@ -64,7 +70,7 @@ export function GoogleSignInButton({
   );
 
   useEffect(() => {
-    if (!scriptReady || !clientId || !buttonRef.current || disabled) return;
+    if (!scriptReady || !clientId || !buttonRef.current) return;
 
     const google = window.google;
     if (!google?.accounts?.id) return;
@@ -84,7 +90,7 @@ export function GoogleSignInButton({
       width: 320,
       locale: 'pt-BR',
     });
-  }, [scriptReady, clientId, handleCredential, disabled]);
+  }, [scriptReady, clientId, handleCredential]);
 
   if (configLoading || !clientId) return null;
 

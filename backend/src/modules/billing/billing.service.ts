@@ -97,6 +97,37 @@ export class BillingService {
     };
   }
 
+  private async resolveStripeCustomerId(
+    stripe: Stripe,
+    user: { id: string; email: string; name: string; stripeCustomerId: string | null },
+  ): Promise<string> {
+    if (user.stripeCustomerId) {
+      try {
+        const existing = await stripe.customers.retrieve(user.stripeCustomerId);
+        if (!('deleted' in existing && existing.deleted)) {
+          return user.stripeCustomerId;
+        }
+      } catch (err: unknown) {
+        const code =
+          err && typeof err === 'object' && 'code' in err
+            ? String((err as { code?: string }).code)
+            : '';
+        if (code !== 'resource_missing') throw err;
+      }
+    }
+
+    const customer = await stripe.customers.create({
+      email: user.email,
+      name: user.name,
+      metadata: { userId: user.id },
+    });
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { stripeCustomerId: customer.id },
+    });
+    return customer.id;
+  }
+
   async createCheckoutSession(userId: string) {
     const stripe = this.requireStripe();
     const priceId = process.env.STRIPE_PRICE_ID || this.config.get<string>('STRIPE_PRICE_ID');
@@ -107,19 +138,7 @@ export class BillingService {
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
     if (!user) throw new BadRequestException('Usuário não encontrado');
 
-    let customerId = user.stripeCustomerId;
-    if (!customerId) {
-      const customer = await stripe.customers.create({
-        email: user.email,
-        name: user.name,
-        metadata: { userId: user.id },
-      });
-      customerId = customer.id;
-      await this.prisma.user.update({
-        where: { id: userId },
-        data: { stripeCustomerId: customerId },
-      });
-    }
+    const customerId = await this.resolveStripeCustomerId(stripe, user);
 
     const trialDays = this.trialDays();
     const subscriptionData: Stripe.Checkout.SessionCreateParams.SubscriptionData = {
@@ -149,12 +168,12 @@ export class BillingService {
   async createPortalSession(userId: string) {
     const stripe = this.requireStripe();
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
-    if (!user?.stripeCustomerId) {
-      throw new BadRequestException('Nenhuma assinatura encontrada.');
-    }
+    if (!user) throw new BadRequestException('Usuário não encontrado');
+
+    const customerId = await this.resolveStripeCustomerId(stripe, user);
 
     const session = await stripe.billingPortal.sessions.create({
-      customer: user.stripeCustomerId,
+      customer: customerId,
       return_url: `${this.appUrl()}/settings`,
     });
 

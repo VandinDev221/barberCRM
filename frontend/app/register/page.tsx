@@ -100,14 +100,14 @@ export default function RegisterPage() {
             </span>
           </label>
 
-          <GoogleSignInButton
-            acceptTerms={acceptTerms}
-            onSuccess={redirectAfterAuth}
-            onError={setError}
-            disabled={loading || !acceptTerms}
-          />
-
-          {!acceptTerms && (
+          {acceptTerms ? (
+            <GoogleSignInButton
+              acceptTerms
+              onSuccess={redirectAfterAuth}
+              onError={setError}
+              disabled={loading}
+            />
+          ) : (
             <p className="text-center text-xs text-muted-foreground">
               Aceite os termos acima para usar o Google.
             </p>
