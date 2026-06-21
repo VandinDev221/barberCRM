@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { NotificationService } from '../notification/notification.service';
 import { slugToDisplayName } from '../../common/utils/slug.util';
 import { PublicBookingDto } from './dto/public-booking.dto';
 
@@ -16,9 +17,25 @@ function getBarberTzOffsetHours(): number {
   return 3;
 }
 
+function formatDateTimePtBr(date: Date): string {
+  const offsetHours = getBarberTzOffsetHours();
+  const localTime = new Date(date.getTime() - offsetHours * 60 * 60 * 1000);
+  return localTime.toLocaleDateString('pt-BR', {
+    weekday: 'long',
+    day: 'numeric',
+    month: 'long',
+    hour: '2-digit',
+    minute: '2-digit',
+    timeZone: 'UTC',
+  });
+}
+
 @Injectable()
 export class PublicService {
-  constructor(private prisma: PrismaService) {}
+  constructor(
+    private prisma: PrismaService,
+    private notification: NotificationService,
+  ) {}
 
   getAuthConfig() {
     const googleClientId = process.env.GOOGLE_CLIENT_ID?.trim() || null;
@@ -177,6 +194,40 @@ export class PublicService {
         services: { include: { service: true } },
       },
     });
+
+    await this.notifyBarberNewBooking(userId, appointment, dto);
+
     return appointment;
+  }
+
+  private async notifyBarberNewBooking(
+    userId: string,
+    appointment: {
+      startAt: Date;
+      services: { service: { name: string } }[];
+    },
+    dto: PublicBookingDto,
+  ) {
+    const barber = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { phone: true },
+    });
+    if (!barber?.phone?.trim()) return;
+
+    const dateStr = formatDateTimePtBr(new Date(appointment.startAt));
+    const serviceNames = appointment.services.map((s) => s.service.name).join(', ');
+    const message =
+      `🔔 Novo agendamento pelo link!\n\n` +
+      `Cliente: ${dto.name.trim()}\n` +
+      `Telefone: ${dto.phone.trim()}\n` +
+      `Data: ${dateStr}\n` +
+      `Serviços: ${serviceNames}\n\n` +
+      `Aguardando confirmação na Agenda.`;
+
+    try {
+      await this.notification.sendWhatsApp(userId, barber.phone.trim(), message);
+    } catch {
+      /* não bloqueia o agendamento se o WhatsApp falhar */
+    }
   }
 }
