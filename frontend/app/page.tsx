@@ -30,14 +30,23 @@ const FEATURES = [
 export default function HomePage() {
   const router = useRouter();
   const [plan, setPlan] = useState<PlanInfo | null>(null);
+  const [pendingBilling, setPendingBilling] = useState(false);
 
   useEffect(() => {
     const token = localStorage.getItem('accessToken');
-    if (token) {
-      apiGet<{ subscriptionStatus: string; onboardingCompleted: boolean }>('/auth/me')
-        .then((me) => router.replace(postAuthRedirect(me)))
-        .catch(() => router.replace('/login'));
-    }
+    if (!token) return;
+
+    apiGet<{ subscriptionStatus: string; onboardingCompleted: boolean }>('/auth/me')
+      .then((me) => {
+        const target = postAuthRedirect(me);
+        // Sem assinatura: permite ver a landing (ex.: link "Voltar ao site" em /billing)
+        if (target === '/billing') {
+          setPendingBilling(true);
+          return;
+        }
+        router.replace(target);
+      })
+      .catch(() => router.replace('/login'));
   }, [router]);
 
   useEffect(() => {
@@ -46,6 +55,14 @@ export default function HomePage() {
 
   return (
     <main className="min-h-screen bg-background">
+      {pendingBilling && (
+        <div className="border-b border-primary/20 bg-primary/10 px-4 py-3 text-center text-sm">
+          <span className="text-muted-foreground">Sua conta está aguardando assinatura. </span>
+          <Link href="/billing" className="font-medium text-primary underline-offset-4 hover:underline">
+            Continuar pagamento
+          </Link>
+        </div>
+      )}
       <header className="border-b border-border/60">
         <div className="mx-auto flex max-w-5xl items-center justify-between px-4 py-4">
           <span className="text-lg font-bold">Barber CRM</span>

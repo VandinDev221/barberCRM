@@ -38,6 +38,19 @@ export class BillingService {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
+  /** Métodos habilitados no Dashboard e compatíveis com BRL (ex.: card, boleto). */
+  private paymentMethodTypes(): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] {
+    const raw =
+      process.env.STRIPE_PAYMENT_METHOD_TYPES ||
+      this.config.get<string>('STRIPE_PAYMENT_METHOD_TYPES') ||
+      'card';
+    const types = raw
+      .split(',')
+      .map((s) => s.trim())
+      .filter(Boolean) as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
+    return types.length > 0 ? types : ['card'];
+  }
+
   async getPublicPlan() {
     const trialDays = this.trialDays();
     const priceId = process.env.STRIPE_PRICE_ID || this.config.get<string>('STRIPE_PRICE_ID');
@@ -153,6 +166,8 @@ export class BillingService {
       customer: customerId,
       client_reference_id: userId,
       line_items: [{ price: priceId, quantity: 1 }],
+      payment_method_types: this.paymentMethodTypes(),
+      locale: 'pt-BR',
       success_url: `${this.appUrl()}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${this.appUrl()}/billing?canceled=1`,
       allow_promotion_codes: true,
