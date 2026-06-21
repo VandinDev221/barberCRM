@@ -3,7 +3,7 @@ import { cn } from '@/lib/utils';
 
 const LOGO_SRC = '/logo-barber-crm.png';
 const LOGO_WIDTH = 1024;
-const LOGO_HEIGHT = 558;
+const LOGO_HEIGHT = 512;
 
 type BrandLogoProps = {
   variant?: 'header' | 'auth' | 'compact';
@@ -21,7 +21,7 @@ export function BrandLogo({ variant = 'header', className, priority }: BrandLogo
       priority={priority}
       className={cn(
         variant === 'header' && 'h-9 w-auto sm:h-10',
-        variant === 'auth' && 'mx-auto h-auto w-full max-w-[300px]',
+        variant === 'auth' && 'mx-auto h-auto w-full max-w-[340px]',
         variant === 'compact' && 'h-8 w-auto',
         className,
       )}
