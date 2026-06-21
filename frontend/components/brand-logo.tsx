@@ -23,7 +23,7 @@ export function BrandLogo({ variant = 'header', className, priority }: BrandLogo
         variant === 'header' && 'h-12 w-auto sm:h-14',
         variant === 'auth' && 'mx-auto h-auto w-full max-w-[420px] sm:max-w-[440px]',
         variant === 'compact' && 'h-10 w-auto sm:h-11',
-        variant === 'sidebar' && 'h-auto w-full',
+        variant === 'sidebar' && 'h-auto max-h-[68px] w-full object-contain object-left',
         className,
       )}
     />
