@@ -8,3 +8,11 @@ export function slugifyPreview(text: string): string {
     .replace(/^-+|-+$/g, '')
     .slice(0, 48);
 }
+
+export function slugToDisplayName(slug: string): string {
+  return slug
+    .split('-')
+    .filter(Boolean)
+    .map((word) => word.charAt(0).toUpperCase() + word.slice(1))
+    .join(' ');
+}

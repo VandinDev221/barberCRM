@@ -14,6 +14,8 @@ import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { WhatsAppService } from '../whatsapp/whatsapp.service';
 import { SettingsService } from './settings.service';
+import { CampaignSuggestDto } from './dto/campaign-suggest.dto';
+import { CampaignAiService } from './campaign-ai.service';
 
 @ApiTags('settings')
 @ApiBearerAuth()
@@ -24,6 +26,7 @@ export class SettingsController {
     private settings: SettingsService,
     private prisma: PrismaService,
     private whatsapp: WhatsAppService,
+    private campaignAi: CampaignAiService,
   ) {}
 
   @Get()
@@ -71,6 +74,20 @@ export class SettingsController {
       });
     }
     return { ok: true };
+  }
+
+  @Post('campaign/suggest')
+  @ApiOperation({ summary: 'Sugestões de mensagem para campanha (Groq IA)' })
+  async suggestCampaign(
+    @CurrentUser('sub') userId: string,
+    @Body() dto: CampaignSuggestDto,
+  ) {
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { name: true, businessName: true },
+    });
+    if (!user) throw new BadRequestException('Usuário não encontrado');
+    return this.campaignAi.suggest(user.name, user.businessName, dto);
   }
 
   @Post('campaign')

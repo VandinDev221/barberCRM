@@ -28,6 +28,7 @@ model User {
   subscriptionStatus   String    @default("inactive") @map("subscription_status")
   currentPeriodEnd     DateTime? @map("current_period_end")
   slug                 String?   @unique @map("slug")
+  businessName         String?   @map("business_name")
   onboardingCompleted  Boolean   @default(false) @map("onboarding_completed")
   passwordResetToken     String?   @map("password_reset_token")
   passwordResetExpiresAt DateTime? @map("password_reset_expires_at")

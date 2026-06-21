@@ -9,12 +9,13 @@ import { Label } from '@/components/ui/label';
 import { MessageCircle, Cake, Megaphone, CreditCard, Link2, Copy, ExternalLink } from 'lucide-react';
 import { apiGet, apiPatch, apiPost } from '@/lib/api';
 import { bookingUrl } from '@/lib/plan';
-import { slugifyPreview } from '@/lib/slug';
+import { slugifyPreview, slugToDisplayName } from '@/lib/slug';
 
 const DEFAULT_BIRTHDAY_MESSAGE =
   'Olá {{name}}! A equipe da barbearia deseja um feliz aniversário! 🎉 Que este dia seja especial. Até a próxima!';
 
 export default function SettingsPage() {
+  const [businessName, setBusinessName] = useState('');
   const [slugInput, setSlugInput] = useState('');
   const [slugSaving, setSlugSaving] = useState(false);
   const [slugSaved, setSlugSaved] = useState(false);
@@ -28,11 +29,15 @@ export default function SettingsPage() {
 
   const previewSlug = slugifyPreview(slugInput);
   const bookingLink = previewSlug ? bookingUrl(previewSlug) : '';
+  const previewDisplayName =
+    businessName.trim() || (previewSlug ? slugToDisplayName(previewSlug) : '');
 
   useEffect(() => {
-    apiGet<{ slug: string }>('/auth/me')
+    apiGet<{ slug: string; businessName?: string | null }>('/auth/me')
       .then((me) => {
         if (me.slug) setSlugInput(me.slug);
+        if (me.businessName) setBusinessName(me.businessName);
+        else if (me.slug) setBusinessName(slugToDisplayName(me.slug));
       })
       .catch(() => {});
   }, []);
@@ -50,8 +55,12 @@ export default function SettingsPage() {
     setSlugSaved(false);
     setSlugError('');
     try {
-      const { slug } = await apiPatch<{ slug: string }>('/auth/slug', { slug: slugInput });
+      const { slug, businessName: savedName } = await apiPatch<{
+        slug: string;
+        businessName: string;
+      }>('/auth/slug', { slug: slugInput, businessName });
       setSlugInput(slug);
+      setBusinessName(savedName);
       setSlugSaved(true);
       setTimeout(() => setSlugSaved(false), 3000);
     } catch (err: unknown) {
@@ -107,7 +116,20 @@ export default function SettingsPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <Label htmlFor="booking-slug">Nome do estabelecimento (URL)</Label>
+            <Label htmlFor="business-name">Nome do estabelecimento</Label>
+            <Input
+              id="business-name"
+              value={businessName}
+              onChange={(e) => setBusinessName(e.target.value)}
+              placeholder="Barbearia do João"
+            />
+            <p className="text-xs text-muted-foreground">
+              Exibido na página pública como &quot;Agendar com {previewDisplayName || '…'}&quot;.
+            </p>
+          </div>
+
+          <div className="space-y-2">
+            <Label htmlFor="booking-slug">Endereço do link</Label>
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center">
               <span className="shrink-0 text-sm text-muted-foreground">…/agendar/</span>
               <Input
@@ -145,7 +167,7 @@ export default function SettingsPage() {
           )}
 
           <div className="flex flex-wrap gap-2">
-            <Button onClick={saveSlug} disabled={slugSaving || !slugInput.trim()}>
+            <Button onClick={saveSlug} disabled={slugSaving || !slugInput.trim() || !businessName.trim()}>
               {slugSaving ? 'Salvando...' : slugSaved ? 'Link salvo!' : 'Salvar link'}
             </Button>
             <Button

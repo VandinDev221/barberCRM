@@ -7,7 +7,17 @@ import { apiGet, apiPost } from '@/lib/api';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { ArrowLeft, Loader2, Megaphone } from 'lucide-react';
+import { ArrowLeft, Loader2, Megaphone, Sparkles } from 'lucide-react';
+
+type CampaignGoal = 'promocao' | 'retorno' | 'agradecimento' | 'novidade' | 'personalizado';
+
+const GOAL_OPTIONS: { value: CampaignGoal; label: string }[] = [
+  { value: 'promocao', label: 'Promoção / desconto' },
+  { value: 'retorno', label: 'Trazer clientes de volta' },
+  { value: 'agradecimento', label: 'Agradecer clientes' },
+  { value: 'novidade', label: 'Novidade na barbearia' },
+  { value: 'personalizado', label: 'Personalizado' },
+];
 
 type Client = {
   id: string;
@@ -21,6 +31,11 @@ export default function CampanhasPage() {
   const [search, setSearch] = useState('');
   const [selectedIds, setSelectedIds] = useState<Set<string>>(new Set());
   const [message, setMessage] = useState('');
+  const [aiGoal, setAiGoal] = useState<CampaignGoal>('promocao');
+  const [aiContext, setAiContext] = useState('');
+  const [aiLoading, setAiLoading] = useState(false);
+  const [aiError, setAiError] = useState('');
+  const [suggestions, setSuggestions] = useState<string[]>([]);
 
   const { data, isLoading } = useQuery({
     queryKey: ['clients-campaign', search],
@@ -53,6 +68,23 @@ export default function CampanhasPage() {
   function toggleAll() {
     if (allSelected) setSelectedIds(new Set());
     else setSelectedIds(new Set(clients.map((c) => c.id)));
+  }
+
+  async function generateSuggestions() {
+    setAiLoading(true);
+    setAiError('');
+    setSuggestions([]);
+    try {
+      const res = await apiPost<{ suggestions: string[] }>('/settings/campaign/suggest', {
+        goal: aiGoal,
+        context: aiContext.trim() || undefined,
+      });
+      setSuggestions(res.suggestions);
+    } catch (err: unknown) {
+      setAiError(err instanceof Error ? err.message : 'Erro ao gerar sugestões');
+    } finally {
+      setAiLoading(false);
+    }
   }
 
   function handleSubmit(e: React.FormEvent) {
@@ -94,6 +126,83 @@ export default function CampanhasPage() {
       </p>
 
       <form onSubmit={handleSubmit} className="space-y-6">
+        <Card className="border-primary/20 bg-primary/5">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-base">
+              <Sparkles className="h-4 w-4 text-primary" />
+              Assistente de IA
+            </CardTitle>
+            <p className="text-sm text-muted-foreground">
+              Gere sugestões de mensagem para WhatsApp com inteligência artificial (Groq).
+            </p>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-4 sm:grid-cols-2">
+              <div className="space-y-2">
+                <label htmlFor="ai-goal" className="text-sm font-medium">
+                  Tipo de campanha
+                </label>
+                <select
+                  id="ai-goal"
+                  value={aiGoal}
+                  onChange={(e) => setAiGoal(e.target.value as CampaignGoal)}
+                  className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm"
+                  disabled={aiLoading}
+                >
+                  {GOAL_OPTIONS.map((opt) => (
+                    <option key={opt.value} value={opt.value}>
+                      {opt.label}
+                    </option>
+                  ))}
+                </select>
+              </div>
+              <div className="space-y-2 sm:col-span-2">
+                <label htmlFor="ai-context" className="text-sm font-medium">
+                  Detalhes (opcional)
+                </label>
+                <Input
+                  id="ai-context"
+                  value={aiContext}
+                  onChange={(e) => setAiContext(e.target.value)}
+                  placeholder="Ex.: 15% no corte + barba, válido até sábado"
+                  disabled={aiLoading}
+                />
+              </div>
+            </div>
+            <Button type="button" variant="secondary" onClick={generateSuggestions} disabled={aiLoading}>
+              {aiLoading ? (
+                <>
+                  <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                  Gerando sugestões...
+                </>
+              ) : (
+                <>
+                  <Sparkles className="mr-2 h-4 w-4" />
+                  Gerar sugestões
+                </>
+              )}
+            </Button>
+            {aiError && (
+              <p className="rounded-md bg-destructive/10 p-2 text-sm text-destructive">{aiError}</p>
+            )}
+            {suggestions.length > 0 && (
+              <div className="space-y-2">
+                <p className="text-sm font-medium">Clique para usar uma sugestão:</p>
+                {suggestions.map((text, i) => (
+                  <button
+                    key={i}
+                    type="button"
+                    onClick={() => setMessage(text)}
+                    className="w-full rounded-lg border border-border bg-card p-3 text-left text-sm transition-colors hover:border-primary/40 hover:bg-primary/5"
+                  >
+                    {text}
+                  </button>
+                ))}
+              </div>
+            )}
+          </CardContent>
+        </Card>
+
         <Card>
           <CardHeader>
             <CardTitle className="text-base">Mensagem</CardTitle>

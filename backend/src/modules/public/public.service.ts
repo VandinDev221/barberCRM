@@ -1,5 +1,6 @@
 import { Injectable, BadRequestException, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { slugToDisplayName } from '../../common/utils/slug.util';
 import { PublicBookingDto } from './dto/public-booking.dto';
 
 const SLOT_MINUTES = 30;
@@ -36,10 +37,13 @@ export class PublicService {
   async getBarberProfile(slug: string) {
     const user = await this.prisma.user.findFirst({
       where: { slug, isActive: true },
-      select: { id: true, name: true, slug: true },
+      select: { id: true, name: true, slug: true, businessName: true },
     });
     if (!user) throw new NotFoundException('Barbeiro não encontrado.');
-    return { name: user.name, slug: user.slug };
+    const displayName =
+      user.businessName?.trim() ||
+      (user.slug ? slugToDisplayName(user.slug) : user.name);
+    return { name: displayName, slug: user.slug };
   }
 
   private async findClientByPhoneOrEmail(

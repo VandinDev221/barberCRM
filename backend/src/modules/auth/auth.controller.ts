@@ -40,7 +40,7 @@ export class AuthController {
   @ApiBearerAuth()
   @ApiOperation({ summary: 'Personalizar endereço do link de agendamento' })
   updateSlug(@CurrentUser('sub') userId: string, @Body() dto: UpdateSlugDto) {
-    return this.auth.updateSlug(userId, dto.slug);
+    return this.auth.updateSlug(userId, dto.slug, dto.businessName);
   }
 
   @Post('google')

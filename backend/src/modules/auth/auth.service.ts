@@ -6,7 +6,7 @@ import * as bcrypt from 'bcrypt';
 import { createHash, randomBytes } from 'crypto';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { MailService } from '../../common/mail/mail.service';
-import { generateUniqueSlug, isSlugAvailable, normalizeSlugInput } from '../../common/utils/slug.util';
+import { generateUniqueSlug, isSlugAvailable, normalizeSlugInput, slugToDisplayName } from '../../common/utils/slug.util';
 import { seedDefaultBarberData } from '../../common/utils/onboarding.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
@@ -149,6 +149,7 @@ export class AuthService {
         email: true,
         name: true,
         slug: true,
+        businessName: true,
         subscriptionStatus: true,
         currentPeriodEnd: true,
         onboardingCompleted: true,
@@ -177,27 +178,35 @@ export class AuthService {
     return { onboardingCompleted: true };
   }
 
-  async updateSlug(userId: string, rawSlug: string) {
+  async updateSlug(userId: string, rawSlug: string, businessName?: string) {
     const slug = normalizeSlugInput(rawSlug);
     if (slug.length < 3) {
       throw new BadRequestException(
-        'Informe um nome válido com pelo menos 3 caracteres (letras, números ou hífens).',
+        'Informe um endereço válido com pelo menos 3 caracteres (letras, números ou hífens).',
       );
     }
     const available = await isSlugAvailable(this.prisma, slug, userId);
     if (!available) {
       throw new ConflictException(
-        'Este endereço não está disponível. Escolha outro nome para o seu estabelecimento.',
+        'Este endereço não está disponível. Escolha outro nome para o link.',
       );
+    }
+
+    let resolvedBusinessName = businessName?.trim();
+    if (resolvedBusinessName && resolvedBusinessName.length < 2) {
+      throw new BadRequestException('Informe o nome do estabelecimento com pelo menos 2 caracteres.');
+    }
+    if (!resolvedBusinessName) {
+      resolvedBusinessName = slugToDisplayName(slug);
     }
 
     const user = await this.prisma.user.update({
       where: { id: userId },
-      data: { slug },
-      select: { slug: true },
+      data: { slug, businessName: resolvedBusinessName },
+      select: { slug: true, businessName: true },
     });
 
-    return { slug: user.slug };
+    return { slug: user.slug, businessName: user.businessName };
   }
 
   async register(dto: RegisterDto) {
