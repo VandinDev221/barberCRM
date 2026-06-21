@@ -9,6 +9,8 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiGet, apiPost } from '@/lib/api';
 import { fetchPublicPlan, type PlanInfo } from '@/lib/plan';
 import { isSubscriptionActive, postAuthRedirect } from '@/lib/subscription';
+
+type BillingStatus = {
   subscriptionStatus: string;
   currentPeriodEnd: string | null;
   isActive: boolean;

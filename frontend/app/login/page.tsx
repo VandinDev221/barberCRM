@@ -8,15 +8,10 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { apiPost } from '@/lib/api';
+import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
 import { postAuthRedirect } from '@/lib/subscription';
-
-type AuthResponse = {
-  accessToken: string;
-  refreshToken: string;
-  subscriptionStatus?: string;
-  onboardingCompleted?: boolean;
-};
 
 export default function LoginPage() {
   const router = useRouter();
@@ -25,20 +20,23 @@ export default function LoginPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  function redirectAfterAuth(res: AuthResponse) {
+    router.replace(
+      postAuthRedirect({
+        subscriptionStatus: res.subscriptionStatus,
+        onboardingCompleted: res.onboardingCompleted,
+      }),
+    );
+  }
+
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError('');
     setLoading(true);
     try {
       const res = await apiPost<AuthResponse>('/auth/login', { email, password });
-      localStorage.setItem('accessToken', res.accessToken);
-      localStorage.setItem('refreshToken', res.refreshToken);
-      router.replace(
-        postAuthRedirect({
-          subscriptionStatus: res.subscriptionStatus,
-          onboardingCompleted: res.onboardingCompleted,
-        }),
-      );
+      persistAuthSession(res);
+      redirectAfterAuth(res);
     } catch (err: unknown) {
       const msg = err instanceof Error ? err.message : 'Erro ao entrar';
       const isApiConfig =
@@ -71,11 +69,27 @@ export default function LoginPage() {
           <CardTitle>Entrar</CardTitle>
           <p className="text-sm text-muted-foreground">Barber CRM</p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {error && (
+            <p className="rounded-md bg-destructive/20 p-2 text-sm text-destructive">{error}</p>
+          )}
+
+          <GoogleSignInButton
+            onSuccess={redirectAfterAuth}
+            onError={setError}
+            disabled={loading}
+          />
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">ou e-mail</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <p className="rounded-md bg-destructive/20 p-2 text-sm text-destructive">{error}</p>
-            )}
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input
@@ -102,7 +116,7 @@ export default function LoginPage() {
               {loading ? 'Entrando...' : 'Entrar'}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
             Não tem conta?{' '}
             <Link href="/register" className="underline hover:text-foreground">
               Criar conta

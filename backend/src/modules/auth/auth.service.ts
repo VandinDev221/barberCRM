@@ -1,6 +1,7 @@
-import { Injectable, UnauthorizedException, BadRequestException } from '@nestjs/common';
+import { Injectable, UnauthorizedException, BadRequestException, ServiceUnavailableException } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { OAuth2Client } from 'google-auth-library';
 import * as bcrypt from 'bcrypt';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { generateUniqueSlug } from '../../common/utils/slug.util';
@@ -8,14 +9,35 @@ import { seedDefaultBarberData } from '../../common/utils/onboarding.util';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
+import { User } from '@prisma/client';
 
 @Injectable()
 export class AuthService {
+  private googleClient: OAuth2Client | null = null;
+
   constructor(
     private prisma: PrismaService,
     private jwt: JwtService,
     private config: ConfigService,
   ) {}
+
+  private getGoogleClientId(): string | undefined {
+    return process.env.GOOGLE_CLIENT_ID || this.config.get<string>('GOOGLE_CLIENT_ID');
+  }
+
+  private getGoogleClient(): OAuth2Client {
+    const clientId = this.getGoogleClientId();
+    if (!clientId) {
+      throw new ServiceUnavailableException(
+        'Login com Google não configurado. Defina GOOGLE_CLIENT_ID no servidor.',
+      );
+    }
+    if (!this.googleClient) {
+      this.googleClient = new OAuth2Client(clientId);
+    }
+    return this.googleClient;
+  }
 
   async login(dto: LoginDto) {
     const user = await this.prisma.user.findUnique({
@@ -24,28 +46,81 @@ export class AuthService {
     if (!user || !user.isActive) {
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
+    if (!user.passwordHash) {
+      throw new UnauthorizedException('Esta conta usa login com Google. Clique em "Continuar com Google".');
+    }
     const valid = await bcrypt.compare(dto.password, user.passwordHash);
     if (!valid) {
       throw new UnauthorizedException('E-mail ou senha inválidos');
     }
-    const tokens = await this.issueTokens(user.id, user.email);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken: tokens.refreshToken },
+    return this.buildAuthResponse(user);
+  }
+
+  async googleLogin(dto: GoogleAuthDto) {
+    const clientId = this.getGoogleClientId();
+    if (!clientId) {
+      throw new ServiceUnavailableException('Login com Google não configurado.');
+    }
+
+    const client = this.getGoogleClient();
+    let payload;
+    try {
+      const ticket = await client.verifyIdToken({
+        idToken: dto.idToken,
+        audience: clientId,
+      });
+      payload = ticket.getPayload();
+    } catch {
+      throw new UnauthorizedException('Token do Google inválido ou expirado.');
+    }
+
+    if (!payload?.email || !payload.sub) {
+      throw new UnauthorizedException('Token do Google inválido.');
+    }
+
+    const email = payload.email.toLowerCase();
+    const googleId = payload.sub;
+    const name = payload.name?.trim() || email.split('@')[0];
+    const avatarUrl = payload.picture || null;
+
+    let user = await this.prisma.user.findFirst({
+      where: { OR: [{ googleId }, { email }] },
     });
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        slug: user.slug,
-        subscriptionStatus: user.subscriptionStatus,
-        onboardingCompleted: user.onboardingCompleted,
-      },
-      subscriptionStatus: user.subscriptionStatus,
-      onboardingCompleted: user.onboardingCompleted,
-      ...tokens,
-    };
+
+    if (!user) {
+      if (!dto.acceptTerms) {
+        throw new BadRequestException(
+          'Conta não encontrada. Crie sua conta em /register e aceite os Termos de Uso.',
+        );
+      }
+      const slug = await generateUniqueSlug(this.prisma, name, email);
+      user = await this.prisma.user.create({
+        data: {
+          email,
+          googleId,
+          name,
+          avatarUrl,
+          slug,
+          onboardingCompleted: false,
+        },
+      });
+      await seedDefaultBarberData(this.prisma, user.id);
+    } else {
+      if (!user.isActive) {
+        throw new UnauthorizedException('Conta desativada.');
+      }
+      const updates: { googleId?: string; avatarUrl?: string | null; name?: string } = {};
+      if (!user.googleId) updates.googleId = googleId;
+      if (avatarUrl && !user.avatarUrl) updates.avatarUrl = avatarUrl;
+      if (Object.keys(updates).length > 0) {
+        user = await this.prisma.user.update({
+          where: { id: user.id },
+          data: updates,
+        });
+      }
+    }
+
+    return this.buildAuthResponse(user);
   }
 
   async me(userId: string) {
@@ -92,7 +167,7 @@ export class AuthService {
       where: { email: dto.email.toLowerCase() },
     });
     if (exists) {
-      throw new UnauthorizedException('E-mail já cadastrado');
+      throw new UnauthorizedException('E-mail já cadastrado. Tente entrar com Google ou use outro e-mail.');
     }
     const hash = await bcrypt.hash(dto.password, 12);
     const slug = await generateUniqueSlug(this.prisma, dto.name, dto.email);
@@ -107,24 +182,7 @@ export class AuthService {
       },
     });
     await seedDefaultBarberData(this.prisma, user.id);
-    const tokens = await this.issueTokens(user.id, user.email);
-    await this.prisma.user.update({
-      where: { id: user.id },
-      data: { refreshToken: tokens.refreshToken },
-    });
-    return {
-      user: {
-        id: user.id,
-        email: user.email,
-        name: user.name,
-        slug: user.slug,
-        subscriptionStatus: user.subscriptionStatus,
-        onboardingCompleted: user.onboardingCompleted,
-      },
-      subscriptionStatus: user.subscriptionStatus,
-      onboardingCompleted: user.onboardingCompleted,
-      ...tokens,
-    };
+    return this.buildAuthResponse(user);
   }
 
   async refresh(userId: string, refreshToken: string) {
@@ -149,8 +207,9 @@ export class AuthService {
     if (!user) {
       return { message: 'Se o e-mail existir, você receberá um link para redefinir a senha.' };
     }
-    // TODO: enviar e-mail com link de reset (ex: SendGrid, Resend)
-    // Por ora apenas retorna mensagem genérica
+    if (!user.passwordHash) {
+      return { message: 'Esta conta usa login com Google. Entre com o botão Continuar com Google.' };
+    }
     return { message: 'Se o e-mail existir, você receberá um link para redefinir a senha.' };
   }
 
@@ -160,6 +219,27 @@ export class AuthService {
       data: { refreshToken: null },
     });
     return { message: 'Logout realizado' };
+  }
+
+  private async buildAuthResponse(user: User) {
+    const tokens = await this.issueTokens(user.id, user.email);
+    await this.prisma.user.update({
+      where: { id: user.id },
+      data: { refreshToken: tokens.refreshToken },
+    });
+    return {
+      user: {
+        id: user.id,
+        email: user.email,
+        name: user.name,
+        slug: user.slug,
+        subscriptionStatus: user.subscriptionStatus,
+        onboardingCompleted: user.onboardingCompleted,
+      },
+      subscriptionStatus: user.subscriptionStatus,
+      onboardingCompleted: user.onboardingCompleted,
+      ...tokens,
+    };
   }
 
   private async issueTokens(userId: string, email: string) {

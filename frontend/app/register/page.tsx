@@ -8,16 +8,11 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
+import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { apiPost } from '@/lib/api';
+import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
 import { postAuthRedirect } from '@/lib/subscription';
 import { PRIVACY_URL, TERMS_URL } from '@/lib/legal';
-
-type AuthResponse = {
-  accessToken: string;
-  refreshToken: string;
-  subscriptionStatus?: string;
-  onboardingCompleted?: boolean;
-};
 
 export default function RegisterPage() {
   const router = useRouter();
@@ -28,6 +23,15 @@ export default function RegisterPage() {
   const [acceptTerms, setAcceptTerms] = useState(false);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+
+  function redirectAfterAuth(res: AuthResponse) {
+    router.replace(
+      postAuthRedirect({
+        subscriptionStatus: res.subscriptionStatus,
+        onboardingCompleted: res.onboardingCompleted,
+      }),
+    );
+  }
 
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
@@ -45,14 +49,8 @@ export default function RegisterPage() {
         password,
         acceptTerms: true,
       });
-      localStorage.setItem('accessToken', res.accessToken);
-      localStorage.setItem('refreshToken', res.refreshToken);
-      router.replace(
-        postAuthRedirect({
-          subscriptionStatus: res.subscriptionStatus,
-          onboardingCompleted: res.onboardingCompleted,
-        }),
-      );
+      persistAuthSession(res);
+      redirectAfterAuth(res);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta');
     } finally {
@@ -77,11 +75,54 @@ export default function RegisterPage() {
             Cadastre-se e assine para liberar o acesso à plataforma.
           </p>
         </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4">
+          {error && (
+            <p className="rounded-md bg-destructive/20 p-2 text-sm text-destructive">{error}</p>
+          )}
+
+          <label className="flex items-start gap-2 text-sm">
+            <input
+              type="checkbox"
+              checked={acceptTerms}
+              onChange={(e) => setAcceptTerms(e.target.checked)}
+              className="mt-1 h-4 w-4"
+            />
+            <span>
+              Li e aceito os{' '}
+              <a href={TERMS_URL} className="underline" target="_blank" rel="noopener noreferrer">
+                Termos de Uso
+              </a>{' '}
+              e a{' '}
+              <a href={PRIVACY_URL} className="underline" target="_blank" rel="noopener noreferrer">
+                Política de Privacidade
+              </a>
+              .
+            </span>
+          </label>
+
+          <GoogleSignInButton
+            acceptTerms={acceptTerms}
+            onSuccess={redirectAfterAuth}
+            onError={setError}
+            disabled={loading || !acceptTerms}
+          />
+
+          {!acceptTerms && (
+            <p className="text-center text-xs text-muted-foreground">
+              Aceite os termos acima para usar o Google.
+            </p>
+          )}
+
+          <div className="relative">
+            <div className="absolute inset-0 flex items-center">
+              <span className="w-full border-t border-border" />
+            </div>
+            <div className="relative flex justify-center text-xs uppercase">
+              <span className="bg-card px-2 text-muted-foreground">ou e-mail</span>
+            </div>
+          </div>
+
           <form onSubmit={handleSubmit} className="space-y-4">
-            {error && (
-              <p className="rounded-md bg-destructive/20 p-2 text-sm text-destructive">{error}</p>
-            )}
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
               <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
@@ -117,31 +158,11 @@ export default function RegisterPage() {
                 required
               />
             </div>
-            <label className="flex items-start gap-2 text-sm">
-              <input
-                type="checkbox"
-                checked={acceptTerms}
-                onChange={(e) => setAcceptTerms(e.target.checked)}
-                className="mt-1 h-4 w-4"
-                required
-              />
-              <span>
-                Li e aceito os{' '}
-                <a href={TERMS_URL} className="underline" target="_blank" rel="noopener noreferrer">
-                  Termos de Uso
-                </a>{' '}
-                e a{' '}
-                <a href={PRIVACY_URL} className="underline" target="_blank" rel="noopener noreferrer">
-                  Política de Privacidade
-                </a>
-                .
-              </span>
-            </label>
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button type="submit" className="w-full" disabled={loading || !acceptTerms}>
               {loading ? 'Criando conta...' : 'Criar conta'}
             </Button>
           </form>
-          <p className="mt-4 text-center text-sm text-muted-foreground">
+          <p className="text-center text-sm text-muted-foreground">
             Já tem conta?{' '}
             <Link href="/login" className="underline hover:text-foreground">
               Entrar

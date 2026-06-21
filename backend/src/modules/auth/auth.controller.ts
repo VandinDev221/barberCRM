@@ -4,6 +4,7 @@ import { AuthService } from './auth.service';
 import { LoginDto } from './dto/login.dto';
 import { RegisterDto } from './dto/register.dto';
 import { ForgotPasswordDto } from './dto/forgot-password.dto';
+import { GoogleAuthDto } from './dto/google-auth.dto';
 import { RefreshDto } from './dto/refresh.dto';
 import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { JwtRefreshGuard } from '../../common/guards/jwt-refresh.guard';
@@ -30,6 +31,12 @@ export class AuthController {
   @ApiOperation({ summary: 'Concluir onboarding inicial' })
   completeOnboarding(@CurrentUser('sub') userId: string) {
     return this.auth.completeOnboarding(userId);
+  }
+
+  @Post('google')
+  @ApiOperation({ summary: 'Login ou registro com Google (ID token)' })
+  google(@Body() dto: GoogleAuthDto) {
+    return this.auth.googleLogin(dto);
   }
 
   @Post('login')
