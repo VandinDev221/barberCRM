@@ -27,10 +27,12 @@ export default function ClientesPage() {
   const [page, setPage] = useState(1);
   const queryClient = useQueryClient();
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, isFetching } = useQuery({
     queryKey: ['clients', page, search],
     queryFn: () =>
       apiGet<Paginated>(`/clients?page=${page}&limit=20&search=${encodeURIComponent(search)}`),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
   });
 
   const deleteMutation = useMutation({
@@ -41,7 +43,12 @@ export default function ClientesPage() {
   return (
     <div className="p-4 sm:p-6">
       <div className="mb-4 flex flex-col gap-3 sm:mb-6 sm:flex-row sm:items-center sm:justify-between">
-        <h1 className="text-xl font-bold sm:text-2xl">Clientes</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-xl font-bold sm:text-2xl">Clientes</h1>
+          {isFetching && !isLoading && (
+            <span className="text-[10px] text-muted-foreground/70">atualizando…</span>
+          )}
+        </div>
         <Button asChild className="w-full sm:w-auto">
           <a href="/clientes/novo">
             <Plus className="mr-2 h-4 w-4" />

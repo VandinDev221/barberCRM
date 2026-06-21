@@ -6,7 +6,7 @@ const LOGO_WIDTH = 1024;
 const LOGO_HEIGHT = 512;
 
 type BrandLogoProps = {
-  variant?: 'header' | 'auth' | 'compact';
+  variant?: 'header' | 'auth' | 'compact' | 'sidebar';
   className?: string;
   priority?: boolean;
 };
@@ -23,6 +23,7 @@ export function BrandLogo({ variant = 'header', className, priority }: BrandLogo
         variant === 'header' && 'h-12 w-auto sm:h-14',
         variant === 'auth' && 'mx-auto h-auto w-full max-w-[420px] sm:max-w-[440px]',
         variant === 'compact' && 'h-10 w-auto sm:h-11',
+        variant === 'sidebar' && 'h-auto w-full',
         className,
       )}
     />

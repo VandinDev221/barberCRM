@@ -22,9 +22,11 @@ type DashboardData = {
 };
 
 export default function DashboardPage() {
-  const { data, isLoading, error } = useQuery({
+  const { data, isLoading, error, isFetching } = useQuery({
     queryKey: ['dashboard'],
     queryFn: () => apiGet<DashboardData>('/dashboard'),
+    refetchInterval: 30_000,
+    refetchIntervalInBackground: true,
   });
 
   if (isLoading) {
@@ -44,7 +46,12 @@ export default function DashboardPage() {
 
   return (
     <div className="p-4 sm:p-6">
-      <h1 className="mb-4 text-xl font-bold sm:mb-6 sm:text-2xl">Dashboard</h1>
+      <div className="mb-4 flex items-center gap-2 sm:mb-6">
+        <h1 className="text-xl font-bold sm:text-2xl">Dashboard</h1>
+        {isFetching && !isLoading && (
+          <span className="text-[10px] text-muted-foreground/70">atualizando…</span>
+        )}
+      </div>
 
       <div className="mb-6 grid gap-3 sm:mb-8 sm:gap-4 md:grid-cols-2 lg:grid-cols-4">
         <Card>

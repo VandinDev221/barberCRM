@@ -55,9 +55,9 @@ export function Sidebar() {
 
   const navContent = (
     <div className="flex h-full flex-col">
-      <div className="flex h-14 shrink-0 items-center justify-between border-b border-border px-4 md:justify-start">
-        <Link href="/dashboard" className="flex items-center" onClick={() => setOpen(false)}>
-          <BrandLogo variant="header" />
+      <div className="flex shrink-0 items-start justify-between border-b border-border px-3 py-4">
+        <Link href="/dashboard" className="block min-w-0 flex-1 pr-2" onClick={() => setOpen(false)}>
+          <BrandLogo variant="sidebar" />
         </Link>
         <Button
           variant="ghost"
