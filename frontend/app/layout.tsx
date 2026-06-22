@@ -4,6 +4,7 @@ import './globals.css';
 import { Providers } from './providers';
 import { AppLayout } from '@/components/layout/app-layout';
 import { MetaPixel } from '@/components/meta-pixel';
+import { MetaPixelPageView } from '@/components/meta-pixel-pageview';
 
 const inter = Inter({ subsets: ['latin'] });
 
@@ -21,6 +22,7 @@ export default function RootLayout({
     <html lang="pt-BR">
       <body className={inter.className}>
         <MetaPixel />
+        <MetaPixelPageView />
         <Providers>
           <AppLayout>{children}</AppLayout>
         </Providers>
