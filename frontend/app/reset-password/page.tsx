@@ -81,6 +81,7 @@ function ResetPasswordForm() {
         <Input
           id="password"
           type="password"
+          autoComplete="new-password"
           minLength={6}
           value={password}
           onChange={(e) => setPassword(e.target.value)}
@@ -92,6 +93,7 @@ function ResetPasswordForm() {
         <Input
           id="confirm"
           type="password"
+          autoComplete="new-password"
           minLength={6}
           value={confirm}
           onChange={(e) => setConfirm(e.target.value)}

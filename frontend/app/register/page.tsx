@@ -114,13 +114,14 @@ export default function RegisterPage() {
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
               <Label htmlFor="name">Nome</Label>
-              <Input id="name" value={name} onChange={(e) => setName(e.target.value)} required />
+              <Input id="name" autoComplete="name" value={name} onChange={(e) => setName(e.target.value)} required />
             </div>
             <div className="space-y-2">
               <Label htmlFor="email">E-mail</Label>
               <Input
                 id="email"
                 type="email"
+                autoComplete="email"
                 value={email}
                 onChange={(e) => setEmail(e.target.value)}
                 required
@@ -131,6 +132,7 @@ export default function RegisterPage() {
               <Input
                 id="phone"
                 type="tel"
+                autoComplete="tel"
                 placeholder="11999999999"
                 value={phone}
                 onChange={(e) => setPhone(e.target.value)}
@@ -141,6 +143,7 @@ export default function RegisterPage() {
               <Input
                 id="password"
                 type="password"
+                autoComplete="new-password"
                 minLength={6}
                 value={password}
                 onChange={(e) => setPassword(e.target.value)}
