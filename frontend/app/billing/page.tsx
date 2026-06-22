@@ -19,6 +19,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { apiGet, apiPost } from '@/lib/api';
+import { trackMetaPixel } from '@/lib/meta-pixel-events';
 import { fetchPublicPlan, type PlanInfo } from '@/lib/plan';
 import { postAuthRedirect } from '@/lib/subscription';
 
@@ -72,6 +73,7 @@ export default function BillingPage() {
     setError('');
     try {
       const { url } = await apiPost<{ url: string }>('/billing/checkout');
+      trackMetaPixel('InitiateCheckout');
       window.location.href = url;
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao iniciar checkout');

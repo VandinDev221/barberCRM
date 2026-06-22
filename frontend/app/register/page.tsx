@@ -11,6 +11,7 @@ import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
 import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { apiPost } from '@/lib/api';
 import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
+import { trackMetaPixel } from '@/lib/meta-pixel-events';
 import { postAuthRedirect } from '@/lib/subscription';
 import { PRIVACY_URL, TERMS_URL } from '@/lib/legal';
 
@@ -50,6 +51,7 @@ export default function RegisterPage() {
         acceptTerms: true,
       });
       persistAuthSession(res);
+      trackMetaPixel('CompleteRegistration');
       redirectAfterAuth(res);
     } catch (err: unknown) {
       setError(err instanceof Error ? err.message : 'Erro ao criar conta');
@@ -96,7 +98,10 @@ export default function RegisterPage() {
           {acceptTerms ? (
             <GoogleSignInButton
               acceptTerms
-              onSuccess={redirectAfterAuth}
+              onSuccess={(res) => {
+                trackMetaPixel('CompleteRegistration');
+                redirectAfterAuth(res);
+              }}
               onError={setError}
               disabled={loading}
             />
