@@ -1,4 +1,5 @@
 import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
+import { Transform } from 'class-transformer';
 import { IsBoolean, IsOptional, IsString, MinLength } from 'class-validator';
 
 export class GoogleAuthDto {
@@ -9,6 +10,7 @@ export class GoogleAuthDto {
 
   @ApiPropertyOptional({ description: 'Obrigatório ao criar conta nova (registro)' })
   @IsOptional()
+  @Transform(({ value }) => value === true || value === 'true')
   @IsBoolean()
   acceptTerms?: boolean;
 }

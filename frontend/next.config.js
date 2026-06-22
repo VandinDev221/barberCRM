@@ -3,6 +3,19 @@ const nextConfig = {
   reactStrictMode: true,
   // standalone só para Docker; no Vercel usa o build padrão
   ...(process.env.VERCEL ? {} : { output: 'standalone' }),
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            key: 'Cross-Origin-Opener-Policy',
+            value: 'same-origin-allow-popups',
+          },
+        ],
+      },
+    ];
+  },
   async rewrites() {
     const apiUrl = process.env.NEXT_PUBLIC_API_URL || '';
     // Na Vercel, não fazer rewrite para localhost (causa DNS_HOSTNAME_RESOLVED_PRIVATE)

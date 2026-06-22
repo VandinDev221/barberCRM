@@ -12,6 +12,7 @@ import { GoogleSignInButton } from '@/components/auth/google-sign-in-button';
 import { apiPost } from '@/lib/api';
 import { AuthResponse, persistAuthSession } from '@/lib/auth-session';
 import { postAuthRedirect } from '@/lib/subscription';
+import { PRIVACY_URL, TERMS_URL } from '@/lib/legal';
 
 export default function LoginPage() {
   const router = useRouter();
@@ -68,10 +69,22 @@ export default function LoginPage() {
           )}
 
           <GoogleSignInButton
+            acceptTerms
             onSuccess={redirectAfterAuth}
             onError={setError}
             disabled={loading}
           />
+          <p className="text-center text-xs text-muted-foreground">
+            Ao entrar com Google pela primeira vez, você concorda com os{' '}
+            <a href={TERMS_URL} className="underline" target="_blank" rel="noopener noreferrer">
+              Termos de Uso
+            </a>{' '}
+            e a{' '}
+            <a href={PRIVACY_URL} className="underline" target="_blank" rel="noopener noreferrer">
+              Política de Privacidade
+            </a>
+            .
+          </p>
 
           <form onSubmit={handleSubmit} className="space-y-4">
             <div className="space-y-2">
