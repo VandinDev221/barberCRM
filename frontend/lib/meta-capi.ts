@@ -2,12 +2,40 @@ type MetaCapiEvent = {
   event_name: string;
   event_time: number;
   action_source: 'website';
-  event_source_url: string;
   user_data: {
     client_ip_address?: string;
     client_user_agent?: string;
   };
+  event_source_url: string;
 };
+
+export async function verifyMetaPixelAccess(
+  pixelId: string,
+  accessToken: string,
+): Promise<{ ok: boolean; name?: string; error?: string; hint?: string; response?: unknown }> {
+  const url = `https://graph.facebook.com/v21.0/${pixelId}?fields=id,name&access_token=${encodeURIComponent(accessToken)}`;
+
+  try {
+    const res = await fetch(url, { method: 'GET' });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const subcode = (data as { error?: { error_subcode?: number } }).error?.error_subcode;
+      return {
+        ok: false,
+        error: (data as { error?: { message?: string } }).error?.message || res.statusText,
+        hint:
+          subcode === 33
+            ? 'Token sem permissão para este pixel ou ID incorreto. Gere o token em: Gerenciador de Eventos → seu Pixel → Configurações → Conversions API → Gerar token de acesso.'
+            : 'Confira se NEXT_PUBLIC_META_PIXEL_ID é o ID do pixel (não é ID do app nem da conta de anúncios).',
+        response: data,
+      };
+    }
+    const name = (data as { name?: string }).name;
+    return { ok: true, name, response: data };
+  } catch (err) {
+    return { ok: false, error: err instanceof Error ? err.message : 'Erro de rede' };
+  }
+}
 
 export async function sendMetaCapiTestEvent(options: {
   pixelId: string;
@@ -17,7 +45,7 @@ export async function sendMetaCapiTestEvent(options: {
   clientIp?: string;
   userAgent?: string;
   eventName?: string;
-}): Promise<{ ok: boolean; response?: unknown; error?: string }> {
+}): Promise<{ ok: boolean; response?: unknown; error?: string; hint?: string }> {
   const payload = {
     data: [
       {
@@ -44,9 +72,14 @@ export async function sendMetaCapiTestEvent(options: {
     });
     const data = await res.json().catch(() => ({}));
     if (!res.ok) {
+      const subcode = (data as { error?: { error_subcode?: number } }).error?.error_subcode;
       return {
         ok: false,
         error: (data as { error?: { message?: string } }).error?.message || res.statusText,
+        hint:
+          subcode === 33
+            ? 'Use o token gerado no Gerenciador de Eventos (Conversions API), não um token genérico do Graph API Explorer.'
+            : undefined,
         response: data,
       };
     }
