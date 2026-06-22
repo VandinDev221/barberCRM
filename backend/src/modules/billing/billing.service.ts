@@ -38,17 +38,19 @@ export class BillingService {
     return Number.isFinite(n) && n > 0 ? n : 0;
   }
 
-  /** Métodos habilitados no Dashboard e compatíveis com BRL (ex.: card, boleto). */
-  private paymentMethodTypes(): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] {
-    const raw =
+  /** Métodos de pagamento: gerenciados no Dashboard Stripe (dynamic payment methods). */
+  private paymentMethodTypes(): Stripe.Checkout.SessionCreateParams.PaymentMethodType[] | undefined {
+    const raw = (
       process.env.STRIPE_PAYMENT_METHOD_TYPES ||
       this.config.get<string>('STRIPE_PAYMENT_METHOD_TYPES') ||
-      'card';
+      ''
+    ).trim();
+    if (!raw) return undefined;
     const types = raw
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean) as Stripe.Checkout.SessionCreateParams.PaymentMethodType[];
-    return types.length > 0 ? types : ['card'];
+    return types.length > 0 ? types : undefined;
   }
 
   async getPublicPlan() {
@@ -161,12 +163,11 @@ export class BillingService {
       subscriptionData.trial_period_days = trialDays;
     }
 
-    const session = await stripe.checkout.sessions.create({
+    const sessionParams: Stripe.Checkout.SessionCreateParams = {
       mode: 'subscription',
       customer: customerId,
       client_reference_id: userId,
       line_items: [{ price: priceId, quantity: 1 }],
-      payment_method_types: this.paymentMethodTypes(),
       locale: 'pt-BR',
       success_url: `${this.appUrl()}/billing/success?session_id={CHECKOUT_SESSION_ID}`,
       cancel_url: `${this.appUrl()}/billing?canceled=1`,
@@ -174,7 +175,14 @@ export class BillingService {
       billing_address_collection: 'auto',
       metadata: { userId },
       subscription_data: subscriptionData,
-    });
+    };
+
+    const paymentTypes = this.paymentMethodTypes();
+    if (paymentTypes) {
+      sessionParams.payment_method_types = paymentTypes;
+    }
+
+    const session = await stripe.checkout.sessions.create(sessionParams);
 
     if (!session.url) throw new BadRequestException('Não foi possível criar sessão de checkout.');
     return { url: session.url };
