@@ -1,5 +1,6 @@
 import {
   BadRequestException,
+  Body,
   Controller,
   Get,
   Headers,
@@ -14,6 +15,7 @@ import { JwtAuthGuard } from '../../common/guards/jwt-auth.guard';
 import { SkipSubscription } from '../../common/decorators/skip-subscription.decorator';
 import { CurrentUser } from '../../common/decorators/current-user.decorator';
 import { BillingService } from './billing.service';
+import { ConfirmCheckoutDto } from './dto/confirm-checkout.dto';
 
 @ApiTags('billing')
 @Controller('billing')
@@ -49,6 +51,24 @@ export class BillingController {
   @ApiOperation({ summary: 'Criar sessão Stripe Checkout' })
   checkout(@CurrentUser('sub') userId: string) {
     return this.billing.createCheckoutSession(userId);
+  }
+
+  @Post('confirm')
+  @SkipSubscription()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Confirmar checkout e sincronizar assinatura (fallback ao webhook)' })
+  confirm(@CurrentUser('sub') userId: string, @Body() dto: ConfirmCheckoutDto) {
+    return this.billing.confirmCheckoutSession(userId, dto.sessionId);
+  }
+
+  @Post('sync')
+  @SkipSubscription()
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Sincronizar assinatura ativa do Stripe (fallback ao webhook)' })
+  sync(@CurrentUser('sub') userId: string) {
+    return this.billing.syncActiveSubscriptionFromStripe(userId);
   }
 
   @Post('portal')

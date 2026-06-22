@@ -188,6 +188,70 @@ export class BillingService {
     return { url: session.url };
   }
 
+  /** Fallback quando o webhook do Stripe ainda não atualizou o banco. */
+  async confirmCheckoutSession(userId: string, sessionId: string) {
+    const stripe = this.requireStripe();
+    const session = await stripe.checkout.sessions.retrieve(sessionId, {
+      expand: ['subscription'],
+    });
+
+    const sessionUserId = session.client_reference_id || session.metadata?.userId;
+    if (sessionUserId !== userId) {
+      throw new BadRequestException('Sessão de checkout não pertence a este usuário.');
+    }
+
+    if (session.status !== 'complete') {
+      throw new BadRequestException('Checkout ainda não foi concluído.');
+    }
+
+    const paidStatuses = new Set(['paid', 'no_payment_required']);
+    if (!paidStatuses.has(session.payment_status)) {
+      throw new BadRequestException('Pagamento ainda não confirmado pelo Stripe.');
+    }
+
+    const rawSub = session.subscription;
+    if (!rawSub) {
+      throw new BadRequestException('Assinatura não encontrada na sessão de checkout.');
+    }
+
+    const subscription =
+      typeof rawSub === 'string'
+        ? await stripe.subscriptions.retrieve(rawSub)
+        : rawSub;
+
+    const customerId =
+      typeof session.customer === 'string' ? session.customer : session.customer?.id;
+
+    await this.syncSubscription(userId, subscription, customerId);
+    return this.getStatus(userId);
+  }
+
+  /** Sincroniza assinatura ativa do cliente Stripe (quando webhook falhou). */
+  async syncActiveSubscriptionFromStripe(userId: string) {
+    const stripe = this.requireStripe();
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: { stripeCustomerId: true },
+    });
+    if (!user?.stripeCustomerId) {
+      throw new BadRequestException('Nenhum cliente Stripe vinculado a esta conta.');
+    }
+
+    const { data } = await stripe.subscriptions.list({
+      customer: user.stripeCustomerId,
+      status: 'all',
+      limit: 10,
+    });
+
+    const subscription = data.find((s) => ['active', 'trialing'].includes(s.status));
+    if (!subscription) {
+      throw new BadRequestException('Nenhuma assinatura ativa encontrada no Stripe.');
+    }
+
+    await this.syncSubscription(userId, subscription);
+    return this.getStatus(userId);
+  }
+
   async createPortalSession(userId: string) {
     const stripe = this.requireStripe();
     const user = await this.prisma.user.findUnique({ where: { id: userId } });
