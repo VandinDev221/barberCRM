@@ -1,22 +1,30 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { Prisma } from '@prisma/client';
+import { getBarberTzOffsetHours } from '../../common/utils/tz.util';
 
 @Injectable()
 export class ReportsService {
   constructor(private prisma: PrismaService) {}
 
   async revenueByPeriod(userId: string, startDate: string, endDate: string) {
+    const tzOffset = getBarberTzOffsetHours();
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const start = new Date(Date.UTC(sy, sm - 1, sd, tzOffset, 0, 0, 0));
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const end = new Date(Date.UTC(ey, em - 1, ed, 23 + tzOffset, 59, 59, 999));
+
     const payments = await this.prisma.payment.findMany({
       where: {
         userId,
-        paidAt: { gte: new Date(startDate), lte: new Date(endDate) },
+        paidAt: { gte: start, lte: end },
       },
       orderBy: { paidAt: 'asc' },
     });
     const byDay: Record<string, number> = {};
     payments.forEach((p) => {
-      const day = (p.paidAt as Date).toISOString().slice(0, 10);
+      const localPaidAt = new Date(p.paidAt.getTime() - tzOffset * 60 * 60 * 1000);
+      const day = localPaidAt.toISOString().slice(0, 10);
       byDay[day] = (byDay[day] || 0) + Number(p.amount);
     });
     return {
@@ -26,11 +34,17 @@ export class ReportsService {
   }
 
   async topServices(userId: string, startDate: string, endDate: string) {
+    const tzOffset = getBarberTzOffsetHours();
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const start = new Date(Date.UTC(sy, sm - 1, sd, tzOffset, 0, 0, 0));
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const end = new Date(Date.UTC(ey, em - 1, ed, 23 + tzOffset, 59, 59, 999));
+
     const completed = await this.prisma.appointment.findMany({
       where: {
         userId,
         status: 'completed',
-        startAt: { gte: new Date(startDate), lte: new Date(endDate) },
+        startAt: { gte: start, lte: end },
       },
       include: { services: { include: { service: true } } },
     });
@@ -51,16 +65,23 @@ export class ReportsService {
   }
 
   async revenueByHour(userId: string, startDate: string, endDate: string) {
+    const tzOffset = getBarberTzOffsetHours();
+    const [sy, sm, sd] = startDate.split('-').map(Number);
+    const start = new Date(Date.UTC(sy, sm - 1, sd, tzOffset, 0, 0, 0));
+    const [ey, em, ed] = endDate.split('-').map(Number);
+    const end = new Date(Date.UTC(ey, em - 1, ed, 23 + tzOffset, 59, 59, 999));
+
     const payments = await this.prisma.payment.findMany({
       where: {
         userId,
-        paidAt: { gte: new Date(startDate), lte: new Date(endDate) },
+        paidAt: { gte: start, lte: end },
       },
     });
     const byHour: Record<number, number> = {};
     for (let h = 0; h < 24; h++) byHour[h] = 0;
     payments.forEach((p) => {
-      const h = (p.paidAt as Date).getHours();
+      const localPaidAt = new Date(p.paidAt.getTime() - tzOffset * 60 * 60 * 1000);
+      const h = localPaidAt.getUTCHours();
       byHour[h] += Number(p.amount);
     });
     return Object.entries(byHour).map(([hour, value]) => ({ hour: +hour, value }));

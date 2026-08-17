@@ -349,6 +349,26 @@ export class BillingService {
       (subscription as { currentPeriodEnd?: number }).currentPeriodEnd;
     const periodEnd = rawEnd ? new Date(rawEnd * 1000) : null;
 
+    // Check if the database is already synced with these exact values to prevent duplicate writes
+    const user = await this.prisma.user.findUnique({
+      where: { id: userId },
+      select: {
+        stripeSubscriptionId: true,
+        subscriptionStatus: true,
+        currentPeriodEnd: true,
+      },
+    });
+
+    if (
+      user &&
+      user.stripeSubscriptionId === subscription.id &&
+      user.subscriptionStatus === subscription.status &&
+      user.currentPeriodEnd?.getTime() === periodEnd?.getTime()
+    ) {
+      // Already synced
+      return;
+    }
+
     await this.prisma.user.update({
       where: { id: userId },
       data: {

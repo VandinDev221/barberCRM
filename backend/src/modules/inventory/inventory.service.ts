@@ -50,11 +50,22 @@ export class InventoryService {
   }
 
   async adjustQuantity(userId: string, id: string, delta: number) {
-    const item = await this.findOne(userId, id);
-    const newQty = Math.max(0, item.quantity + delta);
-    return this.prisma.inventoryItem.update({
-      where: { id },
-      data: { quantity: newQty },
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Fetch item with lock
+      const items = await tx.$queryRaw<any[]>`SELECT * FROM "inventory" WHERE id = ${id} AND "user_id" = ${userId} FOR UPDATE`;
+      if (!items || items.length === 0) {
+        throw new NotFoundException('Item não encontrado');
+      }
+      const item = items[0];
+
+      // 2. Compute new quantity (ensuring it is >= 0)
+      const newQty = Math.max(0, item.quantity + delta);
+
+      // 3. Update quantity
+      return tx.inventoryItem.update({
+        where: { id },
+        data: { quantity: newQty },
+      });
     });
   }
 

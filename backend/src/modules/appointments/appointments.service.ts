@@ -1,4 +1,4 @@
-import { Injectable, Logger, NotFoundException } from '@nestjs/common';
+import { Injectable, Logger, NotFoundException, BadRequestException } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
 import { LoyaltyService } from '../loyalty/loyalty.service';
 import { NotificationService } from '../notification/notification.service';
@@ -33,27 +33,46 @@ export class AppointmentsService {
   async create(userId: string, dto: CreateAppointmentDto) {
     const start = new Date(dto.startAt);
     const end = dto.endAt ? new Date(dto.endAt) : new Date(start.getTime() + 60 * 60 * 1000);
-    const appointment = await this.prisma.appointment.create({
-      data: {
-        userId,
-        clientId: dto.clientId,
-        startAt: start,
-        endAt: end,
-        status: 'scheduled',
-        notes: dto.notes,
-        services: {
-          create: dto.serviceItems.map((s) => ({
-            serviceId: s.serviceId,
-            price: s.price,
-          })),
+
+    return this.prisma.$transaction(async (tx) => {
+      // 1. Lock user row to serialize booking creation
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+
+      // 2. Check overlap
+      const overlap = await tx.appointment.findFirst({
+        where: {
+          userId,
+          status: { not: 'cancelled' },
+          startAt: { lt: end },
+          endAt: { gt: start },
         },
-      },
-      include: {
-        client: true,
-        services: { include: { service: true } },
-      },
+      });
+      if (overlap) {
+        throw new BadRequestException('Horário indisponível (conflito de agendamento).');
+      }
+
+      // 3. Create appointment
+      return tx.appointment.create({
+        data: {
+          userId,
+          clientId: dto.clientId,
+          startAt: start,
+          endAt: end,
+          status: 'scheduled',
+          notes: dto.notes,
+          services: {
+            create: dto.serviceItems.map((s) => ({
+              serviceId: s.serviceId,
+              price: s.price,
+            })),
+          },
+        },
+        include: {
+          client: true,
+          services: { include: { service: true } },
+        },
+      });
     });
-    return appointment;
   }
 
   async findAll(

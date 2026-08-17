@@ -18,7 +18,7 @@ export class BirthdayCronService {
   async sendBirthdayGreetings() {
     if (process.env.BIRTHDAY_WHATSAPP_ENABLED === 'false') return;
 
-    const offsetHours = parseInt(process.env.BARBER_TZ_OFFSET_HOURS ?? '3', 10);
+    const offsetHours = parseInt(process.env.BARBER_TZ_OFFSET_HOURS ?? '-3', 10);
     const barberNow = new Date(Date.now() + offsetHours * 60 * 60 * 1000);
     const todayMonth = barberNow.getUTCMonth();
     const todayDay = barberNow.getUTCDate();

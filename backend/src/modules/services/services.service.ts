@@ -52,7 +52,10 @@ export class ServicesService {
 
   async remove(userId: string, id: string) {
     await this.findOne(userId, id);
-    await this.prisma.service.delete({ where: { id } });
-    return { message: 'Serviço removido' };
+    await this.prisma.service.update({
+      where: { id },
+      data: { isActive: false },
+    });
+    return { message: 'Serviço desativado' };
   }
 }

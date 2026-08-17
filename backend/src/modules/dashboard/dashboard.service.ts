@@ -1,19 +1,15 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../common/prisma/prisma.service';
+import { getBarberTzOffsetHours, getLocalTodayRange, getLocalMonthRange } from '../../common/utils/tz.util';
 
 @Injectable()
 export class DashboardService {
   constructor(private prisma: PrismaService) {}
 
   async get(userId: string) {
-    const today = new Date();
-    today.setHours(0, 0, 0, 0);
-    const tomorrow = new Date(today);
-    tomorrow.setDate(tomorrow.getDate() + 1);
-    const startOfMonth = new Date(today.getFullYear(), today.getMonth(), 1);
-    const endOfMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0, 23, 59, 59);
-    const thirtyDaysAgo = new Date(today);
-    thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
+    const { today, tomorrow } = getLocalTodayRange();
+    const { startOfMonth, endOfMonth } = getLocalMonthRange();
+    const thirtyDaysAgo = new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000);
 
     const [
       todayAppointments,
@@ -80,9 +76,10 @@ export class DashboardService {
   }
 
   private async getRevenueSeries(userId: string, days: number) {
-    const start = new Date();
-    start.setDate(start.getDate() - days);
-    start.setHours(0, 0, 0, 0);
+    const tzOffset = getBarberTzOffsetHours();
+    const { today } = getLocalTodayRange();
+    const start = new Date(today.getTime() - days * 24 * 60 * 60 * 1000);
+
     const payments = await this.prisma.payment.findMany({
       where: { userId, paidAt: { gte: start } },
     });
@@ -90,10 +87,13 @@ export class DashboardService {
     for (let i = 0; i <= days; i++) {
       const d = new Date(start);
       d.setDate(d.getDate() + i);
-      byDay[d.toISOString().slice(0, 10)] = 0;
+      // Construct date string safely in local time
+      const shifted = new Date(d.getTime() - tzOffset * 60 * 60 * 1000);
+      byDay[shifted.toISOString().slice(0, 10)] = 0;
     }
     payments.forEach((p) => {
-      const day = (p.paidAt as Date).toISOString().slice(0, 10);
+      const localPaidAt = new Date(p.paidAt.getTime() - tzOffset * 60 * 60 * 1000);
+      const day = localPaidAt.toISOString().slice(0, 10);
       if (byDay[day] !== undefined) byDay[day] += Number(p.amount);
     });
     return Object.entries(byDay)

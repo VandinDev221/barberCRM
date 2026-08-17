@@ -166,35 +166,64 @@ export class PublicService {
     const normalizedPhone = dto.phone.replace(/\D/g, '');
     const emailNorm = dto.email?.trim().toLowerCase() || null;
 
-    let client = await this.findClientByPhoneOrEmail(userId, normalizedPhone, emailNorm);
-    if (!client) {
-      client = await this.prisma.client.create({
-        data: {
+    const appointment = await this.prisma.$transaction(async (tx) => {
+      // 1. Lock the user row to serialize booking creation for this barber
+      await tx.$queryRaw`SELECT id FROM "User" WHERE id = ${userId} FOR UPDATE`;
+
+      // 2. Verify scheduling conflict
+      const overlap = await tx.appointment.findFirst({
+        where: {
           userId,
-          name: dto.name,
-          phone: normalizedPhone,
-          email: dto.email?.trim() || null,
+          status: { not: 'cancelled' },
+          startAt: { lt: endAt },
+          endAt: { gt: startAt },
         },
       });
-    }
+      if (overlap) {
+        throw new BadRequestException('Horário indisponível (conflito de agendamento).');
+      }
 
-    const appointment = await this.prisma.appointment.create({
-      data: {
-        userId,
-        clientId: client.id,
-        startAt,
-        endAt,
-        status: 'scheduled',
-        notes: 'Agendamento pelo link público',
-        fromPublicLink: true,
-        services: {
-          create: serviceItems,
+      // 3. Resolve or create client
+      let client = await tx.client.findFirst({
+        where: {
+          userId,
+          OR: [
+            { phone: normalizedPhone },
+            ...(emailNorm ? [{ email: emailNorm }] : []),
+          ],
         },
-      },
-      include: {
-        client: true,
-        services: { include: { service: true } },
-      },
+      });
+
+      if (!client) {
+        client = await tx.client.create({
+          data: {
+            userId,
+            name: dto.name,
+            phone: normalizedPhone,
+            email: dto.email?.trim() || null,
+          },
+        });
+      }
+
+      // 4. Create appointment
+      return tx.appointment.create({
+        data: {
+          userId,
+          clientId: client.id,
+          startAt,
+          endAt,
+          status: 'scheduled',
+          notes: 'Agendamento pelo link público',
+          fromPublicLink: true,
+          services: {
+            create: serviceItems,
+          },
+        },
+        include: {
+          client: true,
+          services: { include: { service: true } },
+        },
+      });
     });
 
     await this.notifyBarberNewBooking(userId, appointment, dto);
